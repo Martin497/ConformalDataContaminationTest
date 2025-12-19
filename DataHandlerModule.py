@@ -40,7 +40,7 @@ class DataHandler(object):
         super(DataHandler, self).__init__()
         type_options = ["MNIST", "MNIST_partial", "FEMNIST_partial", "retina", "EyePACS",
                         "EyePACS_wtest", "retinalOCT", "retinalOCT_partial", "WBC_partial",
-                        "cifar10"]
+                        "cifar10", "imagenet"]
         assert type_ in type_options, "The chosen data set is not supported."
         self.type_ = type_
         self.feature_noise = feature_noise
@@ -126,6 +126,7 @@ class DataHandler(object):
             self.null_classes = [0, 1, 2, 3, 4]
             self.train_data_alt = np.load("EyePACS/eyepacs_MNIST_format.npy").reshape((-1, 28**2*3)).astype(np.float32) / 255
             self.train_labels_alt = np.load("EyePACS/eyepacs_MNIST_format_labels.npy")
+            self.n_train_alt = len(self.train_labels_alt)
         elif type_ == "EyePACS":
             data_null = np.load("EyePACS/eyepacs_MNIST_format.npy").reshape((-1, 28**2*3)).astype(np.float32) / 255
             labels_null = np.load("EyePACS/eyepacs_MNIST_format_labels.npy")
@@ -162,6 +163,7 @@ class DataHandler(object):
                 test_labels = in_data["test_labels"]
             self.train_data_alt = np.concatenate((train_images, val_images, test_images), axis=0).reshape((-1, 28**2*3)).astype(np.float32) / 255
             self.train_labels_alt = np.hstack((train_labels[:, 0], val_labels[:, 0], test_labels[:, 0])).astype(np.int16)
+            self.n_train_alt = len(self.train_labels_alt)
         elif type_ == "EyePACS_wtest":
             data_null_train = np.load("EyePACS/eyepacs_MNIST_format.npy").reshape((-1, 28**2*3)).astype(np.float32) / 255
             labels_null_train = np.load("EyePACS/eyepacs_MNIST_format_labels.npy")
@@ -203,6 +205,7 @@ class DataHandler(object):
                 test_labels = in_data["test_labels"]
             self.train_data_alt = np.concatenate((train_images, val_images, test_images), axis=0).reshape((-1, 28**2*3)).astype(np.float32) / 255
             self.train_labels_alt = np.hstack((train_labels[:, 0], val_labels[:, 0], test_labels[:, 0])).astype(np.int16)
+            self.n_train_alt = len(self.train_labels_alt)
         elif type_ == "retinalOCT":
             assert False, "Labels are not fully consistent. Use retinalOCT_partial instead."
             from medmnist import OCTMNIST
@@ -223,6 +226,7 @@ class DataHandler(object):
             self.null_classes = [0, 1, 2, 3]
             self.train_data_alt = np.load("RetinalOCT_NEH/retinalOCT_NEH_MNIST_format.npy").reshape((-1, 28**2)).astype(np.float32) / 255
             self.train_labels_alt = np.load("RetinalOCT_NEH/retinalOCT_NEH_MNIST_format_labels_refactored.npy").astype(np.int16)
+            self.n_train_alt = len(self.train_labels_alt)
         elif type_ == "retinalOCT_partial":
             null_classes = kwargs.get("classes", [2, 3])
             self.null_classes = null_classes
@@ -273,6 +277,7 @@ class DataHandler(object):
             indicator_arr_train_labels_alt = np.logical_or.reduce([train_labels_alt == class_ for class_ in null_classes])
             self.train_data_alt = train_data_alt[indicator_arr_train_labels_alt]
             self.train_labels_alt = train_labels_alt[indicator_arr_train_labels_alt]
+            self.n_train_alt = len(self.train_labels_alt)
         elif type_ == "WBC_partial":
             null_classes = kwargs.get("classes", [0, 1, 4, 5])
             self.null_classes = null_classes
@@ -322,42 +327,83 @@ class DataHandler(object):
             indicator_arr_train_labels_alt = np.logical_or.reduce([train_labels_alt == class_ for class_ in null_classes])
             self.train_data_alt = train_data_alt[indicator_arr_train_labels_alt]
             self.train_labels_alt = train_labels_alt[indicator_arr_train_labels_alt]
+            self.n_train_alt = len(self.train_labels_alt)
         elif type_ == "cifar10":
             null_classes = kwargs.get("classes", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
             self.null_classes = null_classes
             noise_type = kwargs.get("cifar10_noise_type", "brightness")
-            def unpickle(file):
-                with open(file, 'rb') as fo:
-                    dict_ = pickle.load(fo, encoding='bytes')
-                return dict_
-            cifar10_in = unpickle("CIFAR10/test_batch")
-            cifar10_labels = np.array(cifar10_in[b"labels"]).astype(np.int16)   
-            cifar10_data = np.transpose(np.reshape(cifar10_in[b"data"].astype(np.float32)/255, (-1, 32, 32, 3), order="F"), axes=(0, 2, 1, 3)).reshape((-1, 32**2*3))
+            # def unpickle(file):
+            #     with open(file, 'rb') as fo:
+            #         dict_ = pickle.load(fo, encoding='bytes')
+            #     return dict_
+            # cifar10_in = unpickle("CIFAR10/test_batch")
+            # cifar10_labels = np.array(cifar10_in[b"labels"]).astype(np.int16)   
+            # cifar10_data = np.transpose(np.reshape(cifar10_in[b"data"].astype(np.float32)/255, (-1, 32, 32, 3), order="F"), axes=(0, 2, 1, 3)).reshape((-1, 32**2*3))
+            cifar10_data = np.load("CIFAR10/train_data.npy").astype(np.float32)/255
+            cifar10_labels = np.load("CIFAR10/train_labels.npy").astype(np.int16)
             indicator_arr = np.logical_or.reduce([cifar10_labels == class_ for class_ in null_classes])
             cifar10_data = cifar10_data[indicator_arr]
             cifar10_labels = cifar10_labels[indicator_arr]
 
-            self.train_data = cifar10_data[:-1000]
-            self.train_labels = cifar10_labels[:-1000]
+            self.train_data = cifar10_data[:-2000]
+            self.train_labels = cifar10_labels[:-2000]
             self.n_train, self.d = self.train_data.shape
             self.num_classes = len(np.unique(self.train_labels))
 
-            self.test_data = cifar10_data[-1000:]
-            self.test_labels = cifar10_labels[-1000:]
+            self.test_data = cifar10_data[-2000:]
+            self.test_labels = cifar10_labels[-2000:]
             self.n_test, _ = self.test_data.shape
 
             cifar10c_in = (np.load(f"CIFAR10C/{noise_type}.npy").astype(np.float32)/255).reshape((-1, 32**2*3))[-10000:]
+            cifar10_test_labels = np.load("CIFAR10/test_labels.npy").astype(np.int16)
+            indicator_arr = np.logical_or.reduce([cifar10_test_labels == class_ for class_ in null_classes])
             cifar10c_data = cifar10c_in[indicator_arr]
-            self.train_data_alt = cifar10c_data[:-1000]
+            self.train_data_alt = cifar10c_data
             # plt.imshow(self.train_data[0].reshape((32, 32, 3)))
             # plt.show()
             # plt.imshow(self.train_data_alt[0].reshape((32, 32, 3)))
             # plt.show()
-            self.train_labels_alt = cifar10_labels[:-1000]
+            self.train_labels_alt = cifar10_labels
             print(noise_type)
+            self.n_train_alt = len(self.train_labels_alt)
+        elif type_ == "imagenet":
+            null_classes = kwargs.get("classes", [i for i in range(200)])
+            self.null_classes = null_classes
+            noise_type = kwargs.get("imagenet_noise_type", "brightness")
 
+            imagenet_data = (np.load("TinyImageNet/TinyImageNetTrain.npy").astype(np.float32)/255).reshape((-1, 64**2*3))
+            imagenet_labels = np.load("TinyImageNet/TinyImageNetTrainLabels.npy").astype(np.int16)
+            indicator_arr = np.logical_or.reduce([imagenet_labels == class_ for class_ in null_classes])
+            imagenet_data = imagenet_data[indicator_arr]
+            imagenet_labels = imagenet_labels[indicator_arr]
 
-        if (type_ != "retina") and (type_ != "EyePACS") and (type_ != "EyePACS_wtest") and (type_ != "WBC_partial") and (type_ != "cifar10"):
+            self.train_data = imagenet_data[:-len(self.null_classes)*100]
+            self.train_labels = imagenet_labels[:-len(self.null_classes)*100]
+            self.n_train, self.d = self.train_data.shape
+            self.num_classes = len(np.unique(self.train_labels))
+
+            self.test_data = imagenet_data[-len(self.null_classes)*100:]
+            self.test_labels = imagenet_labels[-len(self.null_classes)*100:]
+            self.n_test, _ = self.test_data.shape
+
+            imagenetc_in = (np.load(f"TinyImageNet-C/{noise_type}/5/TinyImageNetC.npy").astype(np.float32)/255).reshape((-1, 64**2*3))
+            imagenetc_labels = np.load(f"TinyImageNet-C/{noise_type}/5/TinyImageNetCLabels.npy").astype(np.int16)
+            indicator_arr = np.logical_or.reduce([imagenetc_labels == class_ for class_ in null_classes])
+            imagenetc_data = imagenetc_in[indicator_arr]
+            imagenetc_labels = imagenetc_labels[indicator_arr]
+
+            imagenetvalc_in = (np.load(f"TinyImageNetVal-C/{noise_type}/5/TinyImageNetC.npy").astype(np.float32)/255).reshape((-1, 64**2*3))
+            imagenetvalc_labels = np.load(f"TinyImageNetVal-C/{noise_type}/5/TinyImageNetCLabels.npy").astype(np.int16)
+            indicator_arr = np.logical_or.reduce([imagenetvalc_labels == class_ for class_ in null_classes])
+            imagenetvalc_data = imagenetvalc_in[indicator_arr]
+            imagenetvalc_labels = imagenetvalc_labels[indicator_arr]
+
+            self.train_data_alt = np.concatenate((imagenetc_data, imagenetvalc_data), axis=0)
+            self.train_labels_alt = np.hstack((imagenetc_labels, imagenetvalc_labels))
+            print(noise_type)
+            self.n_train_alt = len(self.train_labels_alt)
+
+        if (type_ != "retina") and (type_ != "EyePACS") and (type_ != "EyePACS_wtest") and (type_ != "WBC_partial") and (type_ != "cifar10") and (type_ != "imagenet"):
             posx = np.arange(28)
             posy = np.arange(28)
             C1, C2 = np.meshgrid(posx, posy)
@@ -446,7 +492,66 @@ class DataHandler(object):
         assert mr0 > 0, "The number of test data points."
         assert mr1 > 0, "The number of test data points."
         assert T > 0, "Number of time epochs most be positive."
-        assert ell0+n0+mr0*(K-1)+mr1*(K-1) <= self.n_train, "Only so much data is available."
+
+        ### Make sure enough data is available ###
+        assert T == 2, ""
+        if (agent_splitting_type == "retina") or (agent_splitting_type == "EyePACS") \
+        or (agent_splitting_type == "EyePACS_wtest") or (agent_splitting_type == "retinalOCT") \
+        or (agent_splitting_type == "WBC") or (agent_splitting_type == "cifar10") \
+        or (agent_splitting_type == "imagenet"):
+            total_null_data = 1e10
+            total_alt_data = 1e10
+            tries = 0
+            while (self.n_train < total_null_data) or (self.n_train_alt < total_alt_data):
+                m0_arr = np.zeros((T, K-1), dtype=np.int32)
+                m1_arr = np.zeros((T, K-1), dtype=np.int32)
+                for t in range(T):
+                    for k in range(1, K):
+                        if t == 0:
+                            m = mr0
+                        elif t == 1:
+                            m = mr1
+                        m0_arr[t, k-1] = np.random.binomial(m, p=1-pi_k[k-1])
+                        m1_arr[t, k-1] = m - m0_arr[t, k-1]
+                total_null_data = ell0+n0+np.sum(m0_arr)
+                total_alt_data = np.sum(m1_arr)
+                tries += 1
+                if tries > 10:
+                    assert False, ""
+            assert self.n_train >= total_null_data, ""
+            assert self.n_train_alt >= total_alt_data, ""
+        elif (agent_splitting_type == "label_noise") or (agent_splitting_type == "feature_noise"):
+            assert ell0+n0+(mr0+mr1)*(K-1) <= self.n_train, "Only so much data is available."
+            m0_arr = np.zeros((T, K-1), dtype=np.int32)
+            m1_arr = np.zeros((T, K-1), dtype=np.int32)
+            for t in range(T):
+                for k in range(1, K):
+                    if t == 0:
+                        m = mr0
+                    elif t == 1:
+                        m = mr1
+                    m0_arr[t, k-1] = np.random.binomial(m, p=1-pi_k[k-1])
+                    m1_arr[t, k-1] = m - m0_arr[t, k-1]
+        elif agent_splitting_type == "femnist":
+            total_null_data = 1e10
+            total_alt_data = 1e10
+            tries = 0
+            while (self.n_train/3 < total_null_data) or (self.n_train/3 < total_alt_data):
+                m0_arr = np.zeros((T, K-1), dtype=np.int32)
+                m1_arr = np.zeros((T, K-1), dtype=np.int32)
+                for t in range(T):
+                    for k in range(1, K):
+                        if t == 0:
+                            m = mr0
+                        elif t == 1:
+                            m = mr1
+                        m0_arr[t, k-1] = np.random.binomial(m, p=1-pi_k[k-1])
+                        m1_arr[t, k-1] = m - m0_arr[t, k-1]
+                total_null_data = ell0+n0+np.sum(m0_arr)
+                total_alt_data = np.sum(m1_arr)
+                tries += 1
+                if tries > 10:
+                    assert False, ""
 
         if agent_splitting_type == "label_noise":
             assert self.feature_noise == "train_test", ""
@@ -485,12 +590,9 @@ class DataHandler(object):
             data_counter = ell0+n0
             for t in range(T):
                 for k in range(1, K):
-                    if t == 0:
-                        m = mr0
-                    elif t == 1:
-                        m = mr1
-                    m0 = np.random.binomial(m, p=1-pi_k[k-1])
-                    m1 = m - m0
+                    m0 = m0_arr[t, k-1]
+                    m1 = m1_arr[t, k-1]
+                    m = m0+m1
 
                     test_data = train_data[data_counter:data_counter+m]
                     test_labels = np.hstack((train_labels[data_counter:data_counter+m0],
@@ -549,12 +651,9 @@ class DataHandler(object):
             data_counter = ell0+n0
             for t in range(T):
                 for k in range(1, K):
-                    if t == 0:
-                        m = mr0
-                    elif t == 1:
-                        m = mr1
-                    m0 = np.random.binomial(m, p=1-pi_k[k-1])
-                    m1 = m - m0
+                    m0 = m0_arr[t, k-1]
+                    m1 = m1_arr[t, k-1]
+                    m = m0+m1
 
                     test_data = np.zeros((m, 28**2), dtype=np.float32)
                     test_data[:m0] = self.feature_noise_fun(train_data[data_counter:data_counter+m0], feature_noise_type=self.feature_noise_type, std=std_null, distance_cov=distance_cov_null)
@@ -620,12 +719,9 @@ class DataHandler(object):
             data_counter_fromalt = 0
             for t in range(T):
                 for k in range(1, K):
-                    if t == 0:
-                        m = mr0
-                    elif t == 1:
-                        m = mr1
-                    m0 = np.random.binomial(m, p=1-pi_k[k-1])
-                    m1 = m - m0
+                    m0 = m0_arr[t, k-1]
+                    m1 = m1_arr[t, k-1]
+                    m = m0+m1
 
                     test_data = np.zeros((m, 28**2), dtype=np.float32)
                     test_data[:m0] = train_data_fromnull[data_counter_fromnull:data_counter_fromnull+m0]
@@ -643,7 +739,8 @@ class DataHandler(object):
 
         if (agent_splitting_type == "retina") or (agent_splitting_type == "EyePACS") \
         or (agent_splitting_type == "EyePACS_wtest") or (agent_splitting_type == "retinalOCT") \
-        or (agent_splitting_type == "WBC") or (agent_splitting_type == "cifar10"):
+        or (agent_splitting_type == "WBC") or (agent_splitting_type == "cifar10") \
+        or (agent_splitting_type == "imagenet"):
             assert self.feature_noise == "train_test", ""
 
             ### Randomization ###
@@ -699,17 +796,16 @@ class DataHandler(object):
             data_counter_fromalt = 0
             for t in range(T):
                 for k in range(1, K):
-                    if t == 0:
-                        m = mr0
-                    elif t == 1:
-                        m = mr1
-                    m0 = np.random.binomial(m, p=1-pi_k[k-1])
-                    m1 = m - m0
+                    m0 = m0_arr[t, k-1]
+                    m1 = m1_arr[t, k-1]
+                    m = m0+m1
 
                     if agent_splitting_type == "retinalOCT":
                         test_data = np.zeros((m, 28**2), dtype=np.float32)
                     elif agent_splitting_type == "cifar10":
                         test_data = np.zeros((m, 32**2*3), dtype=np.float32)
+                    elif agent_splitting_type == "imagenet":
+                        test_data = np.zeros((m, 64**2*3), dtype=np.float32)
                     else:
                         test_data = np.zeros((m, 28**2*3), dtype=np.float32)
                     test_data[:m0] = train_data_fromnull[data_counter_fromnull:data_counter_fromnull+m0]
@@ -722,57 +818,6 @@ class DataHandler(object):
                     local_data.update({f"Agent{k}_Time{t}_test": (test_data, test_labels, test_null_indicator)})
                     data_counter_fromnull += m0
                     data_counter_fromalt += m1
-
-        if (agent_splitting_type == "cifar10"):
-            assert self.feature_noise == "train_test", ""
-
-            ### Randomization ###
-            all_represented = False
-            while all_represented is False:
-                num_data = len(self.train_labels)
-                randomize_array = np.random.permutation(num_data)
-                train_data_fromnull = self.train_data.take(randomize_array, axis=0) # SLOW (but fastest solution I could find even beating a numba implementation)
-                train_labels_fromnull = self.train_labels.take(randomize_array)
-
-                train_data_fromalt = self.train_data_alt.take(randomize_array, axis=0) # SLOW (but fastest solution I could find even beating a numba implementation)
-                train_labels_fromalt = self.train_labels_alt.take(randomize_array)
-
-                ### Agent0 data ###
-                null_data_train = train_data_fromnull[:ell0]
-                null_labels_train = train_labels_fromnull[:ell0]
-                null_data_calibration = train_data_fromnull[ell0:ell0+n0]
-                null_labels_calibration = train_labels_fromnull[ell0:ell0+n0]
-                local_data = {"Agent0_train": (null_data_train, null_labels_train)}
-                local_data.update({"Agent0_calibration": (null_data_calibration, null_labels_calibration)})
-
-                if np.any([len(null_labels_train[null_labels_train == class_]) == 0 for class_ in self.null_classes]) \
-                    or np.any([len(null_labels_calibration[null_labels_calibration == class_]) == 0 for class_ in self.null_classes]):
-                    all_represented = False
-                    print("Re-drawing null data sample.")
-                else:
-                    all_represented = True
-
-            ### Other agents data ###
-            data_counter = ell0+n0
-            for t in range(T):
-                for k in range(1, K):
-                    if t == 0:
-                        m = mr0
-                    elif t == 1:
-                        m = mr1
-                    m0 = np.random.binomial(m, p=1-pi_k[k-1])
-                    m1 = m - m0
-
-                    test_data = np.zeros((m, 32**2*3), dtype=np.float32)
-                    test_data[:m0] = train_data_fromnull[data_counter:data_counter+m0]
-                    test_data[m0:] = train_data_fromalt[data_counter+m0:data_counter+m]
-                    test_labels = np.zeros(m, dtype=np.int16)
-                    test_labels[:m0] = train_labels_fromnull[data_counter:data_counter+m0]
-                    test_labels[m0:] = train_labels_fromalt[data_counter+m0:data_counter+m]
-
-                    test_null_indicator = np.hstack((np.zeros(m0, dtype=bool), np.ones(m1, dtype=bool)))
-                    local_data.update({f"Agent{k}_Time{t}_test": (test_data, test_labels, test_null_indicator)})
-                    data_counter += m
 
         self.local_data = deepcopy(local_data)
         return local_data

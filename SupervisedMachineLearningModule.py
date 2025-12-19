@@ -42,7 +42,8 @@ class SupervisedMachineLearning(object):
         -------
             type_ : str
                 Options are "LogisticRegression", "KNeighborsClassifier", "SVC", "LinearSVC",
-                "MLPClassifier", "GradientBoostingClassifier", "PCA_LogisticRegression", "PCA_SVC".
+                "MLPClassifier", "GradientBoostingClassifier", "PCA_LogisticRegression", "PCA_SVC",
+                "ResNet18", "ResNet9", "ResNet4", "CNN".
         """
         super(SupervisedMachineLearning, self).__init__()
         type_options = ["LogisticRegression", "KNeighborsClassifier", "SVC", "LinearSVC",
@@ -50,6 +51,7 @@ class SupervisedMachineLearning(object):
                         "PCA_SVC", "ResNet18", "ResNet9", "ResNet4", "CNN"]
         assert type_ in type_options, "The chosen supervised machine learning model is not supported."
         self.type_ = type_
+        self.feature_dim = kwargs.get("feature_dim", (32, 32, 3))
         if type_ == "LogisticRegression":
             self.SMLmodel = LogisticRegression(**kwargs)
         elif type_ == "KNeighborsClassifier":
@@ -95,7 +97,6 @@ class SupervisedMachineLearning(object):
             self.SMLmodel.to(self.device)
             next(self.SMLmodel.parameters()).is_cuda
 
-
     def one_hot_encoding(self, labels):
         """
         Inputs:
@@ -127,7 +128,7 @@ class SupervisedMachineLearning(object):
         zero_sort_labels = np.argmax(one_hot_labels, axis=1)
         return zero_sort_labels
 
-    def fit(self, train_features, train_labels, feature_dim=(32, 32, 3)):
+    def fit(self, train_features, train_labels):
         """
         Inputs:
         -------
@@ -152,7 +153,7 @@ class SupervisedMachineLearning(object):
             zero_sort_labels = self.zero_sort_encoding(train_labels)
             zero_sort_labels = torch.from_numpy(zero_sort_labels).type(torch.LongTensor)
             train_features = np.transpose(np.reshape(train_features.astype(np.float32),
-                                (-1, feature_dim[0], feature_dim[1], feature_dim[2])), (0, 3, 1, 2))
+                                (-1, self.feature_dim[0], self.feature_dim[1], self.feature_dim[2])), (0, 3, 1, 2))
             train_features = torch.from_numpy(train_features)
             trainset = CustomTensorDataset(train_features, zero_sort_labels)
             train_loader = DataLoader(trainset, batch_size=32, shuffle=True)

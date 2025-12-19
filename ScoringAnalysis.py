@@ -34,38 +34,50 @@ def main():
     warnings.filterwarnings("ignore")
 
     ### Scenario settings ###
-    data_name = "cifar10"
-    agent_splitting_type = "cifar10"
+    data_name = "imagenet"
+    agent_splitting_type = "imagenet"
     if data_name == "MNIST_partial":
         classes = [1, 4, 7]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
         shape = 28**2
+        feature_dim = (28, 28, 1)
     elif data_name == "FEMNIST_partial":
         classes = [10, 11, 12] # ABC
         alt_classes = [36, 37, 38] # abc
         cifar10_noise_type = None
+        imagenet_noise_type = None
         shape = 28**2
+        feature_dim = (28, 28, 1)
     elif (data_name == "retina") or (data_name == "EyePACS") or (data_name == "EyePACS_wtest"):
         classes = [0, 1, 2, 3, 4]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
         shape = 28**2*3
+        feature_dim = (28, 28, 3)
     elif data_name == "retinalOCT":
         classes = [0, 1, 2, 3]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
         shape = 28**2
+        feature_dim = (28, 28, 1)
     elif data_name == "retinalOCT_partial":
         classes = [0, 3]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
         shape = 28**2
+        feature_dim = (28, 28, 1)
     elif data_name == "WBC_partial":
         classes = [0, 1, 4, 5]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
         shape = 28**2*3
+        feature_dim = (28, 28, 3)
     elif data_name == "cifar10":
         classes = [3, 4, 5]
         # classes = [0, 1, 8, 9]
@@ -73,12 +85,22 @@ def main():
         alt_classes = None
         shape = 32**2*3
         cifar10_noise_type = "brightness"
+        imagenet_noise_type = None
+        feature_dim = (32, 32, 3)
+    elif data_name == "imagenet":
+        classes = [i for i in range(40)]
+        alt_classes = None
+        shape = 64**2*3
+        cifar10_noise_type = None
+        imagenet_noise_type = "brightness"
+        feature_dim = (64, 64, 3)
 
-    K = 10+1 # K - 1 other agents
+    K = 50+1 # K - 1 other agents
     T = 2
-    ell0 = 60
-    n = 40
-    m = 40
+    ell0 = len(classes)*20
+    n = len(classes)*15
+    m = 30
+    mr1 = 1
 
     ### Feature noise ###
     bin_p = None
@@ -191,6 +213,8 @@ def main():
             file.write("\n")
         if data_name == "cifar10":
             file.write(f"cifar10 noise type: {cifar10_noise_type}\n")
+        if data_name == "imagenet":
+            file.write(f"imagenet noise type: {imagenet_noise_type}\n")
         file.write(f"Use Storey: {use_Storey}\n")
         if (score_name == "AutoencoderXY") or (score_name == "Autoencoder") or (score_name == "labelAutoencoder"):
             file.write(f"Autoencoder latent dim: {latent_dim:d}\n")
@@ -203,9 +227,10 @@ def main():
     ### Class preparation ###
     data_handler = DataHandler(data_name, feature_noise=feature_noise, feature_noise_type=feature_noise_type,
                                classes=classes, alt_classes=alt_classes, bin_p=bin_p, repeats=repeats, block_size=block_size,
-                               std=std, distance_cov=distance_cov, cifar10_noise_type=cifar10_noise_type)
+                               std=std, distance_cov=distance_cov, cifar10_noise_type=cifar10_noise_type, imagenet_noise_type=imagenet_noise_type)
     score_handler = ConformalScore(score_name, labels=classes, classifier=AdaDetect_classifier,
-                                   shape=shape, latent_dim=latent_dim, use_PCA=use_PCA, n_components=n_components)
+                                   shape=shape, latent_dim=latent_dim, use_PCA=use_PCA, n_components=n_components,
+                                   feature_dim = feature_dim)
     test_handler = ConformalContaminationTest()
 
 
@@ -248,7 +273,7 @@ def main():
                 print(pi_k)
 
                 data_dict = data_handler.data_splitting(K=K, K0=None, agent_splitting_type=agent_splitting_type, ell0=ell0, n0=n,
-                                                        pi_k=pi_k, randomize=randomize, m=m, T=T, bin_p=bin_p, repeats=repeats, block_size=block_size,
+                                                        pi_k=pi_k, randomize=randomize, mr0=m, mr1=mr1, T=T, bin_p=bin_p, repeats=repeats, block_size=block_size,
                                                         std=std, distance_cov=distance_cov, std_alt=std_alt, distance_cov_alt=distance_cov_alt, alt_noise_type=alt_noise_type, bin_p_alt=bin_p_alt)
 
                 ### Organize data (part 1) ###
@@ -267,7 +292,7 @@ def main():
                 t1 = time()
                 calibration_scores, potential_data_scores = compute_conformal_scores(score_name, score_handler, data_dict,
                                                                                      potential_train_data, potential_train_labels,
-                                                                                     AdaDetect_individual, m)
+                                                                                     AdaDetect_individual, m, mr1, K-1)
                 potential_conformal_pvalues = test_handler.compute_conformal_pvalues(calibration_scores, potential_data_scores)
                 t2 = time()
                 tot_time_scores += t2-t1
@@ -340,7 +365,7 @@ def main():
             print(pi_k)
 
             data_dict = data_handler.data_splitting(K=K, K0=None, agent_splitting_type=agent_splitting_type, ell0=ell0, n0=n,
-                                                    pi_k=pi_k, randomize=randomize, m=m, T=T, bin_p=bin_p, repeats=repeats, block_size=block_size,
+                                                    pi_k=pi_k, randomize=randomize, mr0=m, mr1=mr1, T=T, bin_p=bin_p, repeats=repeats, block_size=block_size,
                                                     std=std, distance_cov=distance_cov, std_alt=std_alt, distance_cov_alt=distance_cov_alt, alt_noise_type=alt_noise_type, bin_p_alt=bin_p_alt)
 
             ### Organize data (part 1) ###
@@ -358,7 +383,7 @@ def main():
             ### Conformal scores and p-values ###
             calibration_scores, allin_data_scores = compute_conformal_scores(score_name, score_handler, data_dict,
                                                                              potential_train_data, potential_train_labels,
-                                                                             AdaDetect_individual, m)
+                                                                             AdaDetect_individual, m, mr1, K-1)
             potential_conformal_pvalues = test_handler.compute_conformal_pvalues(calibration_scores, allin_data_scores)
 
             # pvals_all[sim, pi_th_idx] = potential_conformal_pvalues.reshape((m, K-1))

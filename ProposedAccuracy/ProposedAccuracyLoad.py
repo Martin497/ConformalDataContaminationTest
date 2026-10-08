@@ -48,8 +48,8 @@ if __name__ == "__main__":
     fsize = (9.6, 5.76)
     mpl.rcParams['figure.dpi'] = 600
 
-    folder = "temp"
-    loadname = "cifar10_brightness_HUGE2_AdaDetect_PCALR_SVC"
+    folder = "MNIST_ln"
+    loadname = "MNIST_partial_ln_labelAdaDetect_LR_SVC"
 
     in_data = np.load(f"{folder}/{loadname}.npz")
     save_res = True
@@ -62,7 +62,6 @@ if __name__ == "__main__":
 
     with open(f"{folder}/{loadname}.txt", "r") as file:
         lines = file.readlines()
-        sims = eval(lines[0].split(" ")[1][:-1])
         Kminus1 = eval(lines[2].split(" ")[1][:-1])
         K = Kminus1 + 1
         n = eval(lines[4].split(" ")[1][:-1])
@@ -183,15 +182,7 @@ if __name__ == "__main__":
     # plt.ylim(0.71, 0.735)
     # plt.ylim(0.81, 0.845)
     # plt.ylim(0.85, 0.875)
-    # plt.ylim(0.533, 0.551)
-    # plt.xlim(9.9, 20.1)
-    # plt.ylim(0.895, 0.94)
-    # plt.ylim(0.79, 0.85)
-    plt.ylim(0.38, 0.43)
-    # plt.ylim(0.526, 0.544)
-    plt.xlim(49, 101)
-    # plt.xlim(99, 201)
-    # plt.xlim(9, 21)
+    plt.xlim(9.9, 20.1)
     plt.show()
 
     if save_res is True:
@@ -247,14 +238,14 @@ if __name__ == "__main__":
         plot_confidence_interval(bd, ms, zval, "tab:cyan", "paleturquoise")
     # for bd, ms in zip(bought_data_partoracles_th_mean, in_data["model_scores_oraclesth"].T):
     #     plot_confidence_interval(bd, ms, zval, "tab:green", "seagreen")
-    rho_idx_arr = np.arange(0, len(bought_data_baselines_mean)-1, 1)
-    for rho in rho_idx_arr:
+    for rho in range(K):
         plot_confidence_interval(bought_data_baselines_mean[rho+1], in_data["model_scores_baselines"][:, rho+1], zval, "tab:blue", "cornflowerblue")
     plt.show()
 
     # =============================================================================
     # Accuracy : differenct wrt. baseline (compute ecdfs)
     # =============================================================================
+    rho_idx_arr = np.arange(0, 11, 1)
     diff_dict = dict()
     for idx, rho_idx_ in enumerate(rho_idx_arr):
         diff_dict[f"{rho_idx_}"] = dict()
@@ -352,15 +343,16 @@ if __name__ == "__main__":
     # =============================================================================
     # Accuracy : differenct wrt. baseline (Positive probability)
     # =============================================================================
+    rho_idx_arr = np.arange(0, 11, 1)
     positive_prob = np.zeros((len(rho_idx_arr), 6), dtype=np.float32)
     for idx, rho_idx_ in enumerate(rho_idx_arr):
         for idx2 in range(4):
             diff = diff_dict[f"{rho_idx_}"][f"{name_list[idx2]}"]["diff"]
-            positive_prob[idx, idx2+2] = len(diff[diff >= 0])/len(diff)
+            positive_prob[idx, idx2+2] = len(diff[diff > 0])/len(diff)
         diff = diff_dict[f"{rho_idx_}"]["partoracles_th"]["diff"]
-        positive_prob[idx, 1] = len(diff[diff >= 0])/len(diff)
+        positive_prob[idx, 1] = len(diff[diff > 0])/len(diff)
         diff = diff_dict[f"{rho_idx_}"]["oraclesth"]["diff"]
-        positive_prob[idx, 0] = len(diff[diff >= 0])/len(diff)
+        positive_prob[idx, 0] = len(diff[diff > 0])/len(diff)
 
     print(positive_prob[rho_idx])
     fig = plt.figure(figsize=fsize)
@@ -377,9 +369,10 @@ if __name__ == "__main__":
     # =============================================================================
     # Accuracy : differenct wrt. baseline (Average diff)
     # =============================================================================
+    rho_idx_arr = np.arange(0, 11, 1)
     mean_diff = np.zeros((len(rho_idx_arr), 6), dtype=np.float32)
     # std_diff = np.zeros((len(rho_idx_arr), 6), dtype=np.float32)
-    diff_all = np.zeros((len(rho_idx_arr), 6, sims), dtype=np.float32)
+    diff_all = np.zeros((len(rho_idx_arr), 6, 500), dtype=np.float32)
     for idx, rho_idx_ in enumerate(rho_idx_arr):
         for idx2 in range(4):
             diff = diff_dict[f"{rho_idx_}"][f"{name_list[idx2]}"]["diff"]

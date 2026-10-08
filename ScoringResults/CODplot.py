@@ -8,20 +8,21 @@ of conformal p-values.
 """
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 
 
 if __name__ == "__main__":
     plt.style.use("seaborn-v0_8-whitegrid")
     fsize = (9.6, 5.76)
+    mpl.rcParams['figure.dpi'] = 600
+
     scenarios = ["retina/retina",
                  "retinalOCT_partial/retinalOCT_partial",
                  "WBC_partial/WBC_partial",
                  "FEMNIST_partial/FEMNIST_partial",
                  "MNIST_partial_fn/MNIST_partial_fn",
-                 "MNIST_partial_ln/MNIST_partial_ln",
-                 "cifar10_brightness/cifar10_brightness",
-                 "cifar10_snow/cifar10_snow"]
+                 "MNIST_partial_ln/MNIST_partial_ln"]
     conformal_scores = ["OCSVM",
                         "IF",
                         "AE",
@@ -31,14 +32,10 @@ if __name__ == "__main__":
                         "labelIF",
                         "labelAE",
                         "labelAdaDetect_LR",
-                        "labelAdaDetect_SVC",
-                        "AdaDetect_PCALR",
-                        "labelAdaDetect_PCALR"]
+                        "labelAdaDetect_SVC"]
 
     colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple",
-              "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan",
-              "indigo", "springgreen"]
-    save_res = True
+              "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
 
     for sc_idx, sc in enumerate(scenarios):
         type_name = sc.split("/")[-1]
@@ -48,17 +45,14 @@ if __name__ == "__main__":
             savename = f"{sc}_{cs}_discrete_uniform"
             with open(savename+".txt", "r") as file:
                 lines = file.readlines()
-                # Kminus1 = eval(lines[2].split(" ")[1][:-1])
-                # K = Kminus1 + 1
                 n = eval(lines[4].split(" ")[1][:-1])
-                # m = eval(lines[5].split(" ")[1][:-1])
                 pi_model = lines[10].split(" ")[-1][:-1]
                 assert lines[4].split(" ")[0][0] == "n", ""
                 assert lines[10].split(" ")[0] == "pi"
             assert pi_model == "discrete_uniform", ""
             in_data = np.load(f"{savename}.npz")
-            pvals_all = in_data["pvals_all"]
-            indicator_all = in_data["indicator_all"]
+            pvals_all = in_data["pvals_all"]/(n+1)
+            indicator_all = in_data["indicator_all"].astype(bool)
 
             outliers = pvals_all[indicator_all]
             outlier_mass = np.zeros(n+1)
@@ -68,14 +62,6 @@ if __name__ == "__main__":
             outlier_cdf = np.cumsum(outlier_mass)
 
             plt.plot(np.arange(1,n+2,1)/(n+1), outlier_cdf, color=colors[cs_idx], label=f"{cs}")
-
-            with open(f"{type_name}_COD_pvals_cdf.txt", "a") as file:
-                file.write(f"\\addplot[semithick, solid, color{cs_idx+1:d}]\n")
-                file.write("table{%\n")
-                for x, y in zip(np.arange(1,n+2,1)/(n+1), outlier_cdf):
-                    file.write(f"{x:.4f}  {y:.4f}\n")
-                # file.write("};\\label{plot:Storey_ell100_cdf}\n")
-                file.write("};\n")
 
         plt.plot(np.arange(1,n+2,1)/(n+1), np.arange(1,n+2,1)/(n+1), color="k")
         plt.legend()

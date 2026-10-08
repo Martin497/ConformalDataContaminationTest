@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 from scipy.stats import ecdf
-from tabulate import tabulate
 from sklearn.metrics import auc
 
 
@@ -20,16 +19,10 @@ if __name__ == "__main__":
     mpl.rcParams['figure.dpi'] = 600
     color_list = ["tab:red", "tab:olive", "tab:purple", "tab:orange"]
     name_list = ["Storey", "Quantile", "Summation", "Fisher"]
+    pi_th_idx = 1
+    pi = 0.1
 
-    # savename = "retina/retina_labelAdaDetect_LR_discrete_uniform"
-    # savename = "WBC_partial/WBC_partial_AE_discrete_uniform"
-    # savename = "cifar10_snow/cifar10_snow_labelAE_discrete_uniform"
-    # savename = "retina/retina_labelAdaDetect_LR_discrete_uniform"
-    # savename = "MNIST_partial_ln/MNIST_partial_ln_AdaDetect_PCALR_discrete_uniform"
-    # savename = "FEMNIST_partial/FEMNIST_partial_labelAdaDetect_PCALR_discrete_uniform"
-    savename = "temp"
-
-    save_res = False
+    savename = "retina/retina_AdaDetect_SVC_discrete_uniform"
 
     with open(savename+".txt", "r") as file:
         lines = file.readlines()
@@ -44,8 +37,8 @@ if __name__ == "__main__":
     in_data = np.load(f"{savename}.npz")
 
     pi_true = in_data["pi_true"]
-    pvals_all = in_data["pvals_all"]
-    indicator_all = in_data["indicator_all"]
+    pvals_all = in_data["pvals_all"]/(n+1)
+    indicator_all = in_data["indicator_all"].astype(bool)
     pcon_total = in_data["pcon_total"]
     pi_true_flat = pi_true.flatten()
     pcon_flat = pcon_total[:, :, :, :].reshape(-1, 4)
@@ -56,7 +49,6 @@ if __name__ == "__main__":
     # =============================================================================
     # Distribution of conformal p-values of OOD samples
     # =============================================================================
-    # outlier_colors_list = ["tab:green", "tab:orange", "tab:purple"]
     outlier_cdf_all = list()
 
     pvals = pvals_all
@@ -82,10 +74,7 @@ if __name__ == "__main__":
     # =============================================================================
     # Distribution of conformal data contamination p-values
     # =============================================================================
-    # if (savename == "mnist_ln_classes147_small") or (savename == "mnist_ln_classes147_large"):
     if (pi_model == "discrete_uniform"):
-        pi_th_idx = 1
-        pi = 0.1
 
         pi_true = in_data["pi_true"][:, pi_th_idx, :]
         indicator_all = in_data["indicator_all"]
@@ -114,39 +103,3 @@ if __name__ == "__main__":
 
         print(f"{auc_data[0]:.4f}, {auc_data[1]:.4f}, {auc_data[2]:.4f}, {auc_data[3]:.4f}")
 
-        if save_res is True:
-            with open(f"{savename}_CCTest_pvals_cdf.txt", "w") as file:
-                file.write("\\addplot[semithick, color1]\n")
-                file.write("table{%\n")
-                n = len(CCTest_ecdf_list[0].cdf.quantiles)
-                for i in range(n-1):
-                    file.write(f"{CCTest_ecdf_list[0].cdf.quantiles[i]:.4f}  {CCTest_ecdf_list[0].cdf.probabilities[i]:.4f}\n")
-                    file.write(f"{CCTest_ecdf_list[0].cdf.quantiles[i+1]:.4f}  {CCTest_ecdf_list[0].cdf.probabilities[i]:.4f}\n")
-                file.write(f"{1:.4f}  {1:.4f}\n")
-                file.write(f"{1:.4f}  {1:.4f}\n")
-                file.write("};\\label{plot:Storey_cdf}\n")
-                # file.write("};\n")
-
-                file.write("\\addplot[semithick, color2]\n")
-                file.write("table{%\n")
-                n = len(CCTest_ecdf_list[1].cdf.quantiles)
-                for i in range(n-1):
-                    file.write(f"{CCTest_ecdf_list[1].cdf.quantiles[i]:.4f}  {CCTest_ecdf_list[1].cdf.probabilities[i]:.4f}\n")
-                    file.write(f"{CCTest_ecdf_list[1].cdf.quantiles[i+1]:.4f}  {CCTest_ecdf_list[1].cdf.probabilities[i]:.4f}\n")
-                file.write("};\\label{plot:Quantile_cdf}\n")
-                # file.write("};\n")
-
-                file.write("\\addplot[semithick, color4]\n")
-                file.write("table{%\n")
-                for x, y in zip(CCTest_ecdf_list[2].cdf.quantiles[::3], CCTest_ecdf_list[2].cdf.probabilities[::3]):
-                    file.write(f"{x:.4f}  {y:.4f}\n")
-                file.write("};\\label{plot:Sum_cdf}\n")
-                # file.write("};\n")
-
-                file.write("\\addplot[semithick, color3]\n")
-                file.write("table{%\n")
-                for x, y in zip(CCTest_ecdf_list[3].cdf.quantiles[::3], CCTest_ecdf_list[3].cdf.probabilities[::3]):
-                    file.write(f"{x:.4f}  {y:.4f}\n")
-                file.write("};\\label{plot:Fisher_cdf}\n")
-                # file.write("};\n")
-            

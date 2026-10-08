@@ -9,13 +9,9 @@ https://www.kaggle.com/code/ivankunyankin/resnet18-from-scratch-using-pytorch/no
 import time
 import copy
 import numpy as np
-# import pandas as pd
-# import matplotlib.pyplot as plt
 import pickle
-# from sklearn.model_selection import train_test_split
 
 import torch
-# import torchvision
 import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
@@ -88,8 +84,6 @@ class ResNet_18(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512, num_classes)
 
-        # self.softmax = nn.Softmax(dim=0)
-
     def __make_layer(self, in_channels, out_channels, stride):
 
         identity_downsample = None
@@ -116,7 +110,6 @@ class ResNet_18(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.shape[0], -1)
         x = self.fc(x)
-        # x = self.softmax(x)
         return x 
 
     def identity_downsample(self, in_channels, out_channels):
@@ -142,7 +135,6 @@ class CNN(nn.Module):
 
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        # self.softmax = nn.Softmax(dim=0)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(self.hidden_channels, num_classes)
@@ -161,7 +153,6 @@ class CNN(nn.Module):
 
         x = x.view(x.shape[0], -1)
         x = self.fc(x)
-        # x = self.softmax(x)
         return x
 
 class ResidualBlock(nn.Module):
@@ -201,8 +192,6 @@ class ResidualBlock(nn.Module):
 
         out_x = out.clone()
         out_x = self.relu(out_x) + residual
-        # out = self.relu(out)
-        # out += residual
         return out_x
 
 
@@ -273,18 +262,11 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def train_model(model, dataloaders, criterion, optimizer, lr_scheduler, device, num_epochs=50, verbose=True):
-
-    # torch.autograd.set_detect_anomaly(True)
-    # since = time.time()
-    # val_acc_history = []
-    # best_model_wts = copy.deepcopy(model.state_dict())
-    # best_acc = 0.0
-
     for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch+1, num_epochs))
-        print('-' * 10)
+        if verbose is True:
+            print('Epoch {}/{}'.format(epoch+1, num_epochs))
+            print('-' * 10)
 
-        # for phase in ['train', 'val']: # Each epoch has a training and validation phase
         for phase in ['train']: # Each epoch has a training and validation phase
             if phase == 'train':
                 model.train()  # Set model to training mode
@@ -296,7 +278,6 @@ def train_model(model, dataloaders, criterion, optimizer, lr_scheduler, device, 
 
             for inputs, labels in dataloaders[phase]: # Iterate over data
 
-                # inputs = transforms.functional.resize(inputs, (112, 112))
                 inputs = inputs.to(device)
 
                 labels = labels.to(device)
@@ -319,29 +300,13 @@ def train_model(model, dataloaders, criterion, optimizer, lr_scheduler, device, 
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
 
-            # if phase == 'val': # Adjust learning rate based on val loss
             lr_scheduler.step(epoch_loss)
 
             if verbose is True:
                 epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
                 print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
-            # deep copy the model
-            # if phase == 'val' and epoch_acc > best_acc:
-            #     best_acc = epoch_acc
-            #     best_model_wts = copy.deepcopy(model.state_dict())
-            # if phase == 'val':
-            #     val_acc_history.append(epoch_acc)
-
-        # print()
-
-    # time_elapsed = time.time() - since
-    # print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    # print('Best val Acc: {:4f}'.format(best_acc))
-
-    # load best model weights
-    # model.load_state_dict(best_model_wts)
-    return model#, val_acc_history
+    return model
 
 def score_model(model, device, testloader):
     model.eval()
@@ -353,90 +318,18 @@ def score_model(model, device, testloader):
         predictions = predictions.to("cpu").numpy()
         labels = labels.to("cpu").numpy()
         acc += np.sum(labels == predictions)
-    acc /= len(testloader)
+    acc /= len(testloader.dataset)
     return acc
+
+@torch.no_grad()
+def weight_reset(model):
+    reset_parameters = getattr(model, "reset_parameters", None)
+    if callable(reset_parameters):
+        model.reset_parameters()
 
 def unpickle(file):
     with open(file, 'rb') as fo:
         dict_ = pickle.load(fo, encoding='bytes')
     return dict_
 
-if __name__ == "__main__":
-    torch.manual_seed(17)
-    nn_model = "CNN"
 
-    null_classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    noise_type = "brightness"
-    cifar10_in = unpickle("CIFAR10/test_batch")
-    cifar10_labels = np.array(cifar10_in[b"labels"]).astype(np.int16)   
-    cifar10_data = np.transpose(np.reshape(cifar10_in[b"data"].astype(np.float32)/255, (-1, 32, 32, 3), order="F"), axes=(0, 3, 2, 1))
-    indicator_arr = np.logical_or.reduce([cifar10_labels == class_ for class_ in null_classes])
-    cifar10_data = cifar10_data[indicator_arr]
-    cifar10_labels = cifar10_labels[indicator_arr]
-
-    if nn_model == "ResNet_18":
-        model = ResNet_18(3, len(null_classes))
-    elif nn_model == "ResNet_9":
-        model = ResNet_9(3, len(null_classes))
-    elif nn_model == "ResNet_4":
-        model = ResNet_4(3, len(null_classes))
-    elif nn_model == "CNN":
-        model = CNN(3, len(null_classes))
-
-    # submission = pd.read_csv("../input/digit-recognizer/sample_submission.csv")
-
-    labels = torch.from_numpy(cifar10_labels).type(torch.LongTensor)
-    data = torch.from_numpy(cifar10_data)
-
-    # train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size = 0.2, random_state = 42)
-    train_data = data[:-1000]
-    train_labels = labels[:-1000]
-    test_data = data[-1000:]
-    test_labels = labels[-1000:]
-
-    # transform = transforms.Compose([
-    #     transforms.ToPILImage(),
-    #     transforms.RandomAffine(degrees=20, scale=(1.1, 1.1)),
-    #     transforms.RandomCrop((32, 32), padding=2, pad_if_needed=True, fill=0, padding_mode='constant'),
-    #     transforms.ToTensor()
-    # ])
-    # trainset = ConcatDataset([
-    #     CustomTensorDataset(train_data, train_labels),
-    #     CustomTensorDataset(train_data, train_labels, transform=transform)
-    # ])
-    trainset = CustomTensorDataset(train_data, train_labels)
-    valset = CustomTensorDataset(test_data, test_labels)
-    testset = CustomTensorDataset(test_data, test_labels)
-
-    train_loader = DataLoader(trainset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(valset, batch_size=32, shuffle=False)
-    test_loader = DataLoader(testset, batch_size=32, shuffle=False)
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(device)
-
-    count_parameters(model)
-
-    model.to(device)
-    next(model.parameters()).is_cuda
-
-    epochs = 1
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-4)
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
-    # model, _ = train_model(model, {"train": train_loader, "val": val_loader}, criterion, optimizer, epochs)
-    model = train_model(model, {"train": train_loader}, criterion, optimizer, lr_scheduler, device, epochs)
-
-    model.eval()
-    # labels = []
-    for inputs, labels in test_loader:
-        # inputs = transforms.functional.resize(inputs, (112, 112))
-        inputs = inputs.to(device)
-        outputs = model(inputs)
-        _, predictions = torch.max(outputs, 1)
-        predictions = predictions.to("cpu").numpy()
-        labels = labels.to("cpu").numpy()
-        # labels.extend(predictions.numpy())
-
-    # submission['Label'] = labels
-    # submission.to_csv('submission.csv', index=False)

@@ -10,23 +10,20 @@ The data in consideration is Gaussian.
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 from sklearn.svm import OneClassSVM
-from scipy.stats import binom as ssbinom
 
 import sys, os
 if os.getcwd() not in sys.path: sys.path.append(os.getcwd())
 
-# from rejection_region_storey import Storey_pvalue
-# from rejection_region_quantile import quantile_pvalue
-# from rejection_region_asymptotic import Fisher_pvalue
 from ConformalContaminationTestModule import ConformalContaminationTest
-
 
 
 if __name__ == "__main__":
     plt.style.use("seaborn-v0_8-whitegrid")
     fsize = (9.6, 5.76)
+    mpl.rcParams['figure.dpi'] = 600
     np.random.seed(42)
     inloop_plotting = False
 
@@ -48,18 +45,16 @@ if __name__ == "__main__":
     pi_th = 0.5
 
     alpha = 0.05
-    lambda_ = n//2 / (n+1)
-    # i0 = m-m//2
-    i0 = int(m-ssbinom.ppf(0.999, m, pi_th)) # binom.ppf(0.0001, m, 1-pi)
+    lambda_ = np.floor(n / 8) / (n+1)
+    i0 = np.floor(m / 3).astype(np.uint16)
     B = 1000
 
     test_handler = ConformalContaminationTest()
 
     rejectBool_storey = np.zeros(sims, dtype=bool)
     rejectBool_quantile = np.zeros(sims, dtype=bool)
-    rejectBool_fisher = np.zeros(sims, dtype=bool)
     rejectBool_linear = np.zeros(sims, dtype=bool)
-    rejectBool_shiftFisher = np.zeros(sims, dtype=bool)
+    rejectBool_fisher = np.zeros(sims, dtype=bool)
     for i in range(sims):
         Xtrain = np.random.normal(loc=mu0, scale=sigma0, size=(n_train, 2)).astype(np.float32)
         XC = np.random.normal(loc=mu0, scale=sigma0, size=(n, 2)).astype(np.float32)
@@ -96,7 +91,7 @@ if __name__ == "__main__":
         # =============================================================================
         # Rejection based on \hat{\pi}
         # =============================================================================
-        pstorey, pquantile, pfisher, pstorey_bootstrap, pquantile_bootstrap, plinear, pshiftFisher \
+        pstorey, pquantile, plinear, pfisher \
             = test_handler.all_conformal_contamination_tests(SC, ST, pi_th=pi_th, n=n, m=m, lambda_=lambda_, i0=i0, B=B)
 
         if pstorey <= alpha:
@@ -105,18 +100,14 @@ if __name__ == "__main__":
         if pquantile <= alpha:
             rejectBool_quantile[i] = True
 
-        if pfisher <= alpha:
-            rejectBool_fisher[i] = True
-
         if plinear <= alpha:
             rejectBool_linear[i] = True
 
-        if pshiftFisher <= alpha:
-            rejectBool_shiftFisher[i] = True
+        if pfisher <= alpha:
+            rejectBool_fisher[i] = True
 
     print("Empirical rejection proportion Storey:          ", np.sum(rejectBool_storey)/sims)
     print("Empirical rejection proportion Quantile:        ", np.sum(rejectBool_quantile)/sims)
     print("Empirical rejection proportion Fisher:          ", np.sum(rejectBool_fisher)/sims)
-    print("Empirical rejection proportion linear:          ", np.sum(rejectBool_linear)/sims)
-    print("Empirical rejection proportion shifted Fisher:  ", np.sum(rejectBool_shiftFisher)/sims)
+    print("Empirical rejection proportion Sum:             ", np.sum(rejectBool_linear)/sims)
 

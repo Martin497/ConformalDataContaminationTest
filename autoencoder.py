@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri May 16 13:03:49 2025
-
-@author: martin
 """
 
 

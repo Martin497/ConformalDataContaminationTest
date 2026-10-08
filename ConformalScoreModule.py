@@ -83,6 +83,7 @@ class ConformalScore(object):
         self.labels = kwargs.get("labels", [i for i in range(10)])
         self.num_labels = len(self.labels)
         self.use_PCA = kwargs.get("use_PCA", False)
+        self.feature_dim = kwargs.get("feature_dim", (32, 32, 3))
         if self.use_PCA is True:
             self.PCAmodel = PCA(kwargs["n_components"])
             kwargs.pop("n_components")
@@ -104,6 +105,18 @@ class ConformalScore(object):
                 self.AdaDetect_model = [MLPClassifier(max_iter=1000, tol=1e-03) for _ in range(self.num_labels)]
             elif classifier == "GradientBoostingClassifier":
                 self.AdaDetect_model = [GradientBoostingClassifier() for _ in range(self.num_labels)]
+            elif classifier == "CNN":
+                self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+                self.AdaDetect_model = [CNN(self.feature_dim[-1], 2).to(self.device) for _ in range(self.num_labels)]
+            elif classifier == "ResNet18":
+                self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+                self.AdaDetect_model = [ResNet_18(self.feature_dim[-1], 2).to(self.device) for _ in range(self.num_labels)]
+            elif classifier == "ResNet9":
+                self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+                self.AdaDetect_model = [ResNet_9(self.feature_dim[-1], 2).to(self.device) for _ in range(self.num_labels)]
+            elif classifier == "ResNet4":
+                self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+                self.AdaDetect_model = [ResNet_4(self.feature_dim[-1], 2).to(self.device) for _ in range(self.num_labels)]
             # self.AdaDetect_classifier = classifier
         elif (type_ == "AdaDetect") or (type_ == "AdaDetectXY"):
             classifier = kwargs["classifier"]
@@ -120,22 +133,22 @@ class ConformalScore(object):
                 # self.AdaDetect_model.set_fit_request(sample_weight=True)
             elif classifier == "CNN":
                 self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-                self.AdaDetect_model = CNN(3, 2)
+                self.AdaDetect_model = CNN(self.feature_dim[-1], 2)
                 self.AdaDetect_model.to(self.device)
                 next(self.AdaDetect_model.parameters()).is_cuda
             elif classifier == "ResNet18":
                 self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-                self.AdaDetect_model = ResNet_18(3, 2)
+                self.AdaDetect_model = ResNet_18(self.feature_dim[-1], 2)
                 self.AdaDetect_model.to(self.device)
                 next(self.AdaDetect_model.parameters()).is_cuda
             elif classifier == "ResNet9":
                 self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-                self.AdaDetect_model = ResNet_9(3, 2)
+                self.AdaDetect_model = ResNet_9(self.feature_dim[-1], 2)
                 self.AdaDetect_model.to(self.device)
                 next(self.AdaDetect_model.parameters()).is_cuda
             elif classifier == "ResNet4":
                 self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-                self.AdaDetect_model = ResNet_4(3, 2)
+                self.AdaDetect_model = ResNet_4(self.feature_dim[-1], 2)
                 self.AdaDetect_model.to(self.device)
                 next(self.AdaDetect_model.parameters()).is_cuda
             # self.AdaDetect_classifier = classifier
@@ -260,8 +273,7 @@ class ConformalScore(object):
                     scores[Y_test == label] = -np.linalg.norm(decoded - X_test[Y_test == label], axis=1)
         return scores
 
-    def adaptive_score(self, X_train, X_calibration, X_test, Y_train=None, Y_calibration=None, Y_test=None,
-                       feature_dim=(32, 32, 3)):
+    def adaptive_score(self, X_train, X_calibration, X_test, Y_train=None, Y_calibration=None, Y_test=None):
         """
         Inputs:
         -------
@@ -293,9 +305,7 @@ class ConformalScore(object):
                     X_calibration_and_test_label = np.concatenate((X_calibration[Y_calibration==label],
                                                                    X_test[Y_test==label]), axis=0)
                     train_labels = np.ones(X_train_label.shape[0])
-                    calibration_and_test_labels = -np.ones(X_calibration_and_test_label.shape[0])
                     features = np.concatenate((X_train_label, X_calibration_and_test_label), axis=0)
-                    labels = np.hstack((train_labels, calibration_and_test_labels))
                     # if (self.classifier == "LogisticRegression") or (self.classifier == "SVC"):
                     #     n_samples = len(labels)
                     #     n_classes = 2
@@ -304,10 +314,49 @@ class ConformalScore(object):
                     #     sample_weight = np.hstack((np.ones(n_positives)*n_samples/(n_classes*n_positives), np.ones(n_negatives)*n_samples/(n_classes*n_negatives)))
                     #     self.AdaDetect_model[label_idx].fit(features, labels, sample_weight)
                     # else:
-                    self.AdaDetect_model[label_idx].fit(features, labels)
-                    assert self.AdaDetect_model[label_idx].classes_[1] == 1, ""
-                    scores_label = self.AdaDetect_model[label_idx].predict_proba(X_calibration_and_test_label)[:, 1]
-                    scores[Y_calibration_and_test==label] = scores_label
+                    if (self.classifier == "CNN") or (self.classifier == "ResNet18") or (self.classifier == "ResNet9") or (self.classifier == "ResNet4"):
+                        calibration_and_test_labels = np.zeros(X_calibration_and_test_label.shape[0])
+                        labels = np.hstack((train_labels, calibration_and_test_labels))
+        
+                        labels = torch.from_numpy(labels).type(torch.LongTensor)
+                        features = np.transpose(np.reshape(features.astype(np.float32), (-1, self.feature_dim[0], self.feature_dim[1], self.feature_dim[2])), (0, 3, 1, 2))
+                        features = torch.from_numpy(features)
+                        trainset = CustomTensorDataset(features, labels)
+                        train_loader = DataLoader(trainset, batch_size=32, shuffle=True)
+        
+                        X_calibration_and_test = np.transpose(np.reshape(X_calibration_and_test_label.astype(np.float32), (-1, self.feature_dim[0], self.feature_dim[1], self.feature_dim[2])), (0, 3, 1, 2))
+                        X_calibration_and_test = torch.from_numpy(X_calibration_and_test)
+                        calibration_and_test_labels = torch.from_numpy(calibration_and_test_labels).type(torch.LongTensor)
+                        testset = CustomTensorDataset(X_calibration_and_test, calibration_and_test_labels)
+                        test_loader = DataLoader(testset, batch_size=32, shuffle=False)
+        
+                        epochs = 10
+                        weight = torch.Tensor([len(features) / (2*len(X_calibration_and_test)), len(features) / (2*len(X_train))])
+                        if torch.cuda.is_available():
+                            weight = weight.cuda()
+                        criterion = nn.CrossEntropyLoss(weight = weight)
+                        optimizer = optim.Adam(self.AdaDetect_model[label_idx].parameters(), lr=0.0001, weight_decay=1e-4)
+                        lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5)
+                        trained_model = train_model(self.AdaDetect_model[label_idx], {"train": train_loader}, criterion, optimizer,
+                                                    lr_scheduler, self.device, epochs, verbose=False)
+                        scores_label = np.zeros(len(calibration_and_test_labels), dtype=np.float32)
+                        trained_model.eval()
+                        scores_idx = 0
+                        for inputs, _ in test_loader:
+                            inputs = inputs.to(self.device)
+                            outputs = trained_model(inputs)
+                            outputs = outputs.to("cpu").detach().numpy()
+                            outputs = np.exp(outputs)/np.sum(np.exp(outputs), axis=1)[:, None]
+                            scores_label[scores_idx:scores_idx+outputs.shape[0]] = outputs[:, 1]
+                            scores_idx += outputs.shape[0]
+                        scores[Y_calibration_and_test==label] = scores_label
+                    else:
+                        calibration_and_test_labels = -np.ones(X_calibration_and_test_label.shape[0])
+                        labels = np.hstack((train_labels, calibration_and_test_labels))
+                        self.AdaDetect_model[label_idx].fit(features, labels)
+                        scores_label = self.AdaDetect_model[label_idx].predict_proba(X_calibration_and_test_label)[:, 1]
+                        scores[Y_calibration_and_test==label] = scores_label
+                        assert self.AdaDetect_model[label_idx].classes_[1] == 1, ""
         elif self.type_ == "AdaDetect":
             X_calibration_and_test = np.concatenate((X_calibration, X_test), axis=0)
             train_labels = np.ones(X_train.shape[0])
@@ -325,22 +374,26 @@ class ConformalScore(object):
                 labels = np.hstack((train_labels, calibration_and_test_labels))
 
                 labels = torch.from_numpy(labels).type(torch.LongTensor)
-                features = np.transpose(np.reshape(features.astype(np.float32), (-1, feature_dim[0], feature_dim[1], feature_dim[2])), (0, 3, 1, 2))
+                features = np.transpose(np.reshape(features.astype(np.float32), (-1, self.feature_dim[0], self.feature_dim[1], self.feature_dim[2])), (0, 3, 1, 2))
                 features = torch.from_numpy(features)
                 trainset = CustomTensorDataset(features, labels)
                 train_loader = DataLoader(trainset, batch_size=32, shuffle=True)
 
-                X_calibration_and_test = np.transpose(np.reshape(X_calibration_and_test.astype(np.float32), (-1, feature_dim[0], feature_dim[1], feature_dim[2])), (0, 3, 1, 2))
+                X_calibration_and_test = np.transpose(np.reshape(X_calibration_and_test.astype(np.float32), (-1, self.feature_dim[0], self.feature_dim[1], self.feature_dim[2])), (0, 3, 1, 2))
                 X_calibration_and_test = torch.from_numpy(X_calibration_and_test)
                 calibration_and_test_labels = torch.from_numpy(calibration_and_test_labels).type(torch.LongTensor)
                 testset = CustomTensorDataset(X_calibration_and_test, calibration_and_test_labels)
                 test_loader = DataLoader(testset, batch_size=32, shuffle=False)
 
                 epochs = 10
-                criterion = nn.CrossEntropyLoss(weight = torch.Tensor([len(features) / (2*len(X_calibration_and_test)), len(features) / (2*len(X_train))]))
+                weight = torch.Tensor([len(features) / (2*len(X_calibration_and_test)), len(features) / (2*len(X_train))])
+                if torch.cuda.is_available():
+                    weight = weight.cuda()
+                criterion = nn.CrossEntropyLoss(weight = weight)
                 optimizer = optim.Adam(self.AdaDetect_model.parameters(), lr=0.0001, weight_decay=1e-4)
                 lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5)
-                self.AdaDetect_model = train_model(self.AdaDetect_model, {"train": train_loader}, criterion, optimizer, lr_scheduler, self.device, epochs)
+                self.AdaDetect_model = train_model(self.AdaDetect_model, {"train": train_loader}, criterion, optimizer,
+                                                   lr_scheduler, self.device, epochs, verbose=True)
                 scores = np.zeros(len(calibration_and_test_labels), dtype=np.float32)
                 self.AdaDetect_model.eval()
                 scores_idx = 0
@@ -348,14 +401,8 @@ class ConformalScore(object):
                     inputs = inputs.to(self.device)
                     outputs = self.AdaDetect_model(inputs)
                     outputs = outputs.to("cpu").detach().numpy()
-                    # outputs = outputs[:, 1]/outputs[:, 0]
-                    # scores[scores_idx:scores_idx+outputs.shape[0]] = outputs
                     outputs = np.exp(outputs)/np.sum(np.exp(outputs), axis=1)[:, None]
                     scores[scores_idx:scores_idx+outputs.shape[0]] = outputs[:, 1]
-                    # outputs = np.exp(outputs)/np.sum(np.exp(outputs), axis=1)[:, None]
-                    # scores[scores_idx:scores_idx+outputs.shape[0]] = np.max(outputs, axis=1)
-                    # outputs = np.abs(outputs[:, 1] - outputs[:, 0])
-                    # scores[scores_idx:scores_idx+outputs.shape[0]] = outputs
                     scores_idx += outputs.shape[0]
                 # plt.hist(scores[:len(X_calibration)], color="tab:red", alpha=0.5, density=True)
                 # plt.hist(scores[len(X_calibration):], color="tab:blue", alpha=0.5, density=True)

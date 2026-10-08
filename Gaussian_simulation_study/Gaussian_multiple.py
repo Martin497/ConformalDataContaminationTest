@@ -6,14 +6,13 @@ Created on Thu Mar  6 10:24:40 2025
 In this script we do testing of the null hypothesis H_0 : \pi \leq \pi_th
 using the proposed test statistics.
 The data in consideration is Gaussian.
+Make Figure S4.
 """
 
 
 import numpy as np
 import matplotlib.pyplot as plt
-
-from sklearn.svm import OneClassSVM
-from scipy.stats import binom as ssbinom
+import matplotlib as mpl
 
 import sys, os
 if os.path.dirname(os.getcwd()) not in sys.path: sys.path.append(os.path.dirname(os.getcwd()))
@@ -25,8 +24,15 @@ from Benjamini_Hochberg import Benjamini_Hochberg_procedure, compute_FDR, comput
 if __name__ == "__main__":
     plt.style.use("seaborn-v0_8-whitegrid")
     fsize = (9.6, 5.76)
+    mpl.rcParams['figure.dpi'] = 600
+
     np.random.seed(49)
-    load = False
+    load = True
+    save_res = False
+
+    loadname = "mu4_n200_m100_pinull0.20_pialt0.30_K20_K010_lambda0.030_i066_gamma0.50"
+    color_list = ["tab:blue", "tab:purple", "tab:orange", "tab:green"]
+
 
     if load == False:
         sims = 2000
@@ -102,7 +108,7 @@ if __name__ == "__main__":
                 # p_hat_quantile[k] = p_hat_quantile_lookup[Tquantile]
                 # p_hat_fisher[k] = Fisher_pvalue(pi_th, n, m, Tfisher)
 
-                p_hat_storey[k], p_hat_quantile[k], _, pstorey_bootstrap, pquantile_bootstrap, p_hat_linear[k], p_hat_fisher[k] \
+                p_hat_storey[k], p_hat_quantile[k], p_hat_linear[k], p_hat_fisher[k] \
                     = test_handler.all_conformal_contamination_tests(SC, ST, pi_th=pi_th, n=n, m=m, lambda_=lambda_, i0=i0, B=B)
 
             # K0_hat = K0
@@ -115,31 +121,26 @@ if __name__ == "__main__":
                 rejectBool_quantile[i, alpha_idx] = Benjamini_Hochberg_procedure(p_hat_quantile, alpha, K0_hat_Quantile, K)
                 rejectBool_fisher[i, alpha_idx] = Benjamini_Hochberg_procedure(p_hat_fisher, alpha, K0_hat_Fisher, K)
                 rejectBool_linear[i, alpha_idx] = Benjamini_Hochberg_procedure(p_hat_linear, alpha, K0_hat_Linear, K)
-                # rejectBool_shiftFisher[i, alpha_idx] = Benjamini_Hochberg_procedure(p_hat_shiftFisher, alpha, K0_hat, K)
 
         FDR_storey = np.zeros(len(alpha_arr), dtype=np.float32)
         FDR_quantile = np.zeros(len(alpha_arr), dtype=np.float32)
         FDR_fisher = np.zeros(len(alpha_arr), dtype=np.float32)
         FDR_linear = np.zeros(len(alpha_arr), dtype=np.float32)
-        # FDR_shiftFisher = np.zeros(len(alpha_arr), dtype=np.float32)
         for alpha_idx, alpha in enumerate(alpha_arr):
             FDR_storey[alpha_idx], _ = compute_FDR(rejectBool_storey[:, alpha_idx, :], K0, sims)
             FDR_quantile[alpha_idx], _ = compute_FDR(rejectBool_quantile[:, alpha_idx, :], K0, sims)
             FDR_fisher[alpha_idx], _ = compute_FDR(rejectBool_fisher[:, alpha_idx, :], K0, sims)
             FDR_linear[alpha_idx], _ = compute_FDR(rejectBool_linear[:, alpha_idx, :], K0, sims)
-            # FDR_shiftFisher[alpha_idx], _ = compute_FDR(rejectBool_shiftFisher[:, alpha_idx, :], K0, sims)
 
         TDR_storey = np.zeros(len(alpha_arr), dtype=np.float32)
         TDR_quantile = np.zeros(len(alpha_arr), dtype=np.float32)
         TDR_fisher = np.zeros(len(alpha_arr), dtype=np.float32)
         TDR_linear = np.zeros(len(alpha_arr), dtype=np.float32)
-        # TDR_shiftFisher = np.zeros(len(alpha_arr), dtype=np.float32)
         for alpha_idx, alpha in enumerate(alpha_arr):
             TDR_storey[alpha_idx], _ = compute_TDR(rejectBool_storey[:, alpha_idx, :], K0, K, sims)
             TDR_quantile[alpha_idx], _ = compute_TDR(rejectBool_quantile[:, alpha_idx, :], K0, K, sims)
             TDR_fisher[alpha_idx], _ = compute_TDR(rejectBool_fisher[:, alpha_idx, :], K0, K, sims)
             TDR_linear[alpha_idx], _ = compute_TDR(rejectBool_linear[:, alpha_idx, :], K0, K, sims)
-            # TDR_shiftFisher[alpha_idx], _ = compute_TDR(rejectBool_shiftFisher[:, alpha_idx, :], K0, K, sims)
 
         # print(f"False discovery rate) Storey: {FDR_storey:.4f}    Quantile: {FDR_quantile:.4f}    Fisher: {FDR_fisher:.4f}")
         # print(f" True discovery rate) Storey: {TDR_storey:.4f}    Quantile: {TDR_quantile:.4f}    Fisher: {TDR_fisher:.4f}")
@@ -151,11 +152,10 @@ if __name__ == "__main__":
                  TDR_fisher=TDR_fisher, TDR_linear=TDR_linear)
 
         fig = plt.figure(figsize=fsize)
-        plt.plot(alpha_arr, FDR_storey, color="tab:orange", label="Storey")
-        plt.plot(alpha_arr, FDR_quantile, color="tab:purple", label="quantile")
-        plt.plot(alpha_arr, FDR_fisher, color="tab:green", label="Fisher")
-        plt.plot(alpha_arr, FDR_linear, color="tab:blue", label="linear")
-        # plt.plot(alpha_arr, FDR_shiftFisher, color="tab:green", label="Fisher")
+        plt.plot(alpha_arr, FDR_storey, color=color_list[0], label="Storey")
+        plt.plot(alpha_arr, FDR_quantile, color=color_list[1], label="quantile")
+        plt.plot(alpha_arr, FDR_fisher, color=color_list[2], label="Fisher")
+        plt.plot(alpha_arr, FDR_linear, color=color_list[3], label="Sum")
         plt.plot(alpha_arr, alpha_arr, color="k")
         plt.xlabel(r"$\alpha$")
         plt.ylabel("FDR")
@@ -164,11 +164,10 @@ if __name__ == "__main__":
         plt.show()
 
         fig = plt.figure(figsize=fsize)
-        plt.plot(alpha_arr, TDR_storey, color="tab:orange", label="Storey")
-        plt.plot(alpha_arr, TDR_quantile, color="tab:purple", label="quantile")
-        plt.plot(alpha_arr, TDR_fisher, color="tab:green", label="Fisher")
-        plt.plot(alpha_arr, TDR_linear, color="tab:blue", label="linear")
-        # plt.plot(alpha_arr, TDR_shiftFisher, color="tab:green", label="Fisher")
+        plt.plot(alpha_arr, TDR_storey, color=color_list[0], label="Storey")
+        plt.plot(alpha_arr, TDR_quantile, color=color_list[1], label="quantile")
+        plt.plot(alpha_arr, TDR_fisher, color=color_list[2], label="Fisher")
+        plt.plot(alpha_arr, TDR_linear, color=color_list[3], label="Sum")
         plt.xlabel(r"$\alpha$")
         plt.ylabel("TDR")
         plt.legend()
@@ -176,8 +175,6 @@ if __name__ == "__main__":
         plt.show()
 
     else:
-        loadname = "mu4_n200_m100_pinull0.20_pialt0.30_K20_K010_lambda0.030_i066_gamma0.50"
-
         in_data = np.load(f"Multiple/{loadname}.npz")
         alpha_arr = in_data["alpha_arr"]
         FDR_storey = in_data["FDR_storey"]
@@ -190,76 +187,77 @@ if __name__ == "__main__":
         TDR_linear = in_data["TDR_linear"]
 
         fig = plt.figure(figsize=fsize)
-        plt.plot(alpha_arr, FDR_storey, color="tab:orange", label="Storey")
-        plt.plot(alpha_arr, FDR_quantile, color="tab:purple", label="quantile")
-        plt.plot(alpha_arr, FDR_fisher, color="tab:green", label="Fisher")
-        plt.plot(alpha_arr, FDR_linear, color="tab:blue", label="linear")
-        # plt.plot(alpha_arr, FDR_shiftFisher, color="tab:green", label="Fisher")
+        plt.plot(alpha_arr, FDR_storey, color=color_list[0], label="Storey")
+        plt.plot(alpha_arr, FDR_quantile, color=color_list[1], label="quantile")
+        plt.plot(alpha_arr, FDR_fisher, color=color_list[2], label="Fisher")
+        plt.plot(alpha_arr, FDR_linear, color=color_list[3], label="Sum")
         plt.plot(alpha_arr, alpha_arr, color="k")
         plt.xlabel(r"$\alpha$")
         plt.ylabel("FDR")
         plt.legend()
-        plt.savefig(f"Multiple/FDR_{loadname}.png", bbox_inches="tight", dpi=500)
+        if save_res is True:
+            plt.savefig(f"Multiple/FDR_{loadname}.png", bbox_inches="tight", dpi=500)
         plt.show()
 
         fig = plt.figure(figsize=fsize)
-        plt.plot(alpha_arr, TDR_storey, color="tab:orange", label="Storey")
-        plt.plot(alpha_arr, TDR_quantile, color="tab:purple", label="quantile")
-        plt.plot(alpha_arr, TDR_fisher, color="tab:green", label="Fisher")
-        plt.plot(alpha_arr, TDR_linear, color="tab:blue", label="linear")
-        # plt.plot(alpha_arr, TDR_shiftFisher, color="tab:green", label="Fisher")
+        plt.plot(alpha_arr, TDR_storey, color=color_list[0], label="Storey")
+        plt.plot(alpha_arr, TDR_quantile, color=color_list[1], label="quantile")
+        plt.plot(alpha_arr, TDR_fisher, color=color_list[2], label="Fisher")
+        plt.plot(alpha_arr, TDR_linear, color=color_list[3], label="Sum")
         plt.xlabel(r"$\alpha$")
         plt.ylabel("TDR")
         plt.legend()
-        plt.savefig(f"Multiple/TDR_{loadname}.png", bbox_inches="tight", dpi=500)
+        if save_res is True:
+            plt.savefig(f"Multiple/TDR_{loadname}.png", bbox_inches="tight", dpi=500)
         plt.show()
 
-        with open(f"Multiple/FDR_{loadname}.txt", "w") as file:
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color2]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, FDR_storey):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+        if save_res is True:
+            with open(f"Multiple/FDR_{loadname}.txt", "w") as file:
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color2]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, FDR_storey):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")
 
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color3]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, FDR_quantile):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color3]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, FDR_quantile):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")
 
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color4]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, FDR_fisher):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color4]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, FDR_fisher):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")
 
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color5]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, FDR_linear):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color5]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, FDR_linear):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")
 
-        with open(f"Multiple/TDR_{loadname}.txt", "w") as file:
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color2]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, TDR_storey):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+            with open(f"Multiple/TDR_{loadname}.txt", "w") as file:
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color2]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, TDR_storey):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")
 
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color3]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, TDR_quantile):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color3]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, TDR_quantile):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")
 
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color4]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, TDR_fisher):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color4]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, TDR_fisher):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")
 
-            file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color5]\n")
-            file.write("table{%\n")
-            for x, y in zip(alpha_arr, TDR_linear):
-                file.write(f"{x:.4f}  {y:.4f}\n")
-            file.write("};\n")
+                file.write("\\addplot[semithick, mark=square, mark options={solid}, solid, color5]\n")
+                file.write("table{%\n")
+                for x, y in zip(alpha_arr, TDR_linear):
+                    file.write(f"{x:.4f}  {y:.4f}\n")
+                file.write("};\n")

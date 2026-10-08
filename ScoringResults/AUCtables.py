@@ -21,21 +21,19 @@ if __name__ == "__main__":
                  "WBC_partial/WBC_partial",
                  "FEMNIST_partial/FEMNIST_partial",
                  "MNIST_partial_fn/MNIST_partial_fn",
-                 "MNIST_partial_ln/MNIST_partial_ln",
-                 "cifar10_brightness/cifar10_brightness"]
-    conformal_scores = ["OCSVM",
-                        "IF",
-                        "AE",
-                        "AdaDetect_LR",
-                        "AdaDetect_SVC",
-                        "labelOCSVM",
-                        "labelIF",
-                        "labelAE",
-                        "labelAdaDetect_LR",
-                        "labelAdaDetect_SVC"]
-                        # "AdaDetect_PCALR"]
-    # conformal_scores = ["AdaDetect_SVC",
-    #                     "labelAdaDetect_LR"]
+                 "MNIST_partial_ln/MNIST_partial_ln"]
+    # conformal_scores = ["OCSVM",
+    #                     "IF",
+    #                     "AE",
+    #                     "AdaDetect_LR",
+    #                     "AdaDetect_SVC",
+    #                     "labelOCSVM",
+    #                     "labelIF",
+    #                     "labelAE",
+    #                     "labelAdaDetect_LR",
+    #                     "labelAdaDetect_SVC"]
+    conformal_scores = ["AdaDetect_SVC",
+                        "labelAdaDetect_LR"]
     names = ["Storey", "Quantile", "Fisher", "Sum"]
     pi_th_indices = [0, 1, 2]
     pis = [0.0, 0.1, 0.2, 0.3]

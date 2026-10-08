@@ -1,0 +1,17 @@
+sims: 2000
+seed: 20
+K: 10
+ell: 60
+n: 40
+m: 40
+agent splitting type: retina
+feature noise type: GRF_norm
+std: 0.00
+distance cov: 0.00
+pi model: discrete_uniform
+gamma: 0.50
+lambda: 0.12
+i0 parameter: 3.00
+Score type: labelAdaDetect
+Use Storey: False
+

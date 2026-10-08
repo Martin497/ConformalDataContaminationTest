@@ -49,16 +49,15 @@ from Benjamini_Hochberg import Benjamini_Hochberg_procedure, Storeys_correction
 
 
 def main():
-    plt.style.use("seaborn-v0_8-whitegrid")
     fsize = (9.6, 5.76)
     import warnings 
     warnings.filterwarnings("ignore")
 
     seed = 11
     np.random.seed(seed)
-    sims = 40
+    sims = 500
     randomize = True
-    savename = "cifar10_brightness_K50_AdaDetect_PCALR_LR"
+    savename = "retina_AdaDetect_LR_SVC"
     savename_list = savename.split("_")
 
     ### Scenario settings ###
@@ -82,61 +81,109 @@ def main():
         agent_splitting_type = f"{savename_list[0]}"
     elif savename_list[0] == "cifar10":
         data_name = f"{savename_list[0]}"
-        agent_splitting_type = f"{savename_list[0]}"        
+        agent_splitting_type = f"{savename_list[0]}"    
+    elif savename_list[0] == "imagenet":
+        data_name = f"{savename_list[0]}"
+        agent_splitting_type = f"{savename_list[0]}"    
 
     if data_name == "MNIST_partial":
-        # classes = [1, 4, 7]
-        classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        classes = [1, 4, 7]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
+        feature_dim = (28, 28, 1)
     elif data_name == "FEMNIST_partial":
-        # classes = [10, 11, 12] # ABC
-        # alt_classes = [36, 37, 38] # abc
-        classes = [i for i in range(10, 20)]
-        alt_classes = [i for i in range(36, 46)]
+        classes = [10, 11, 12] # ABC
+        alt_classes = [36, 37, 38] # abc
         cifar10_noise_type = None
+        imagenet_noise_type = None
+        feature_dim = (28, 28, 1)
     elif (data_name == "retina") or (data_name == "EyePACS") or (data_name == "EyePACS_wtest"):
         classes = [0, 1, 2, 3, 4]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
+        feature_dim = (28, 28, 3)
     elif data_name == "retinalOCT":
         classes = [0, 1, 2, 3]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
+        feature_dim = (28, 28, 1)
     elif data_name == "retinalOCT_partial":
         classes = [0, 3]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
+        feature_dim = (28, 28, 1)
     elif data_name == "WBC_partial":
         classes = [0, 1, 4, 5]
         alt_classes = None
         cifar10_noise_type = None
+        imagenet_noise_type = None
+        feature_dim = (28, 28, 3)
     elif data_name == "cifar10":
-        # classes = [3, 4, 5]
-        # classes = [0, 1, 8, 9]
-        # classes = [3, 4, 5]
-        classes = [i for i in range(10)]
+        classes = [3, 4, 5]
         alt_classes = None
         cifar10_noise_type = f"{savename_list[1]}"
+        imagenet_noise_type = None
+        feature_dim = (32, 32, 3)
+    elif data_name == "imagenet":
+        classes = [i for i in range(4)]
+        alt_classes = None
+        cifar10_noise_type = None
+        imagenet_noise_type = f"{savename_list[1]}"
+        if imagenet_noise_type == "defocusblur":
+            imagenet_noise_type = "defocus_blur"
+        feature_dim = (64, 64, 3)
+    shape = np.prod(feature_dim)
 
-    # include = ["baseline", "baseline_COD", "oracle", "oracleth", "oracle_COD", "oracle_CODth",
-    #            "oracle_CODth_picky", "proposed", "proposed_picky"]
-    # include = ["baseline", "oracle", "oracleth", "oracle_COD", "oracle_CODth",
-    #            "oracle_CODth_picky", "proposed", "proposed_picky"]
-    # include = ["baseline", "oracleth", "oracle_CODth_picky", "proposed_picky"]
-    # include = ["baseline", "oracleth", "oracle_CODth", "oracle_CODth_picky", "proposed", "proposed_picky"]
-    # include = ["baseline", "oracleth", "oracle_CODth", "proposed"]
-    include = ["proposed_budget"]
+    include = ["baseline", "oracleth", "oracle_CODth", "proposed"]
 
-    # proposed_idx_include = [0, 1, 2, 3]
-    proposed_idx_include = [0, 3]
+    proposed_idx_include = [0, 1, 2, 3]
 
-    K = 50+1 # K - 1 other agents
+    # K = 50+1 # K - 1 other agents
+    # T = 2
+    # ell0 = 300
+    # n = 250
+    # mr0 = 50
+    # mr1 = 50
+
+    K = 10+1 # K - 1 other agents
     T = 2
-    ell0 = 300
-    n = 250
-    mr0 = 50
-    mr1 = 50
+    ell0 = 60
+    n = 40
+    mr0 = 40
+    mr1 = 40
+
+    ### Contamination scenario ###
+    pi_choice_type = "uniform"
+    pi_param = -1
+    K0 = -1
+
+    ### Experiment setup ###
+    fixed_budget = np.arange(0, K, step=1)
+
+    significance_levels = [0.05, 0.2, 0.5, 0.7]
+    num_rejection_thresholds = len(significance_levels)
+
+    pi_th_arr = np.linspace(0, 0.7, num=8) # Threshold conformal contamination test
+    len_pi_th_arr = len(pi_th_arr)
+
+    pi_th_arr_oracle = np.linspace(0, 1, num=21) # Threshold conformal contamination test
+    len_pi_th_arr_oracle = len(pi_th_arr_oracle)
+
+    ### Contamination test hyperparameters ###
+    use_Storey = True
+    gamma = 0.5 # Storey's hyperparameter conformal contamination test
+    
+    lambda_ = n//8 / (n+1)
+    i0_param = 3
+    i0_arr = [mr0//i0_param for pi_th in pi_th_arr]
+
+    ### Outlier detection ###
+    beta = -1 # Significance level conformal outlier detection
+    zeta = -1 # Storey's hyperparameter conformal outlier detection
 
     ### Feature noise ###
     bin_p = None
@@ -155,20 +202,6 @@ def main():
         feature_noise_type = "GRF_norm"
         feature_noise = "train_test"
         alt_noise_type = None
-
-    ### Contamination ###
-    # pi_choice_type = "fixed"
-    # pi_param = 0
-    # K0 = (K-1)
-    # pi_choice_type = "beta"
-    # pi_param = 0.2
-    # K0 = int((K-1)/2)
-    pi_choice_type = "uniform"
-    pi_param = -1
-    K0 = -1
-    # pi_choice_type = "fixed"
-    # pi_param = 0.9
-    # K0 = 15
 
     ### Hyperparameters ###
     score_name = savename_list[-3]
@@ -189,6 +222,22 @@ def main():
             AdaDetect_classifier = "SVC"
             use_PCA = True
             n_components = 0.8
+        elif savename_list[-2] == "ResNet18":
+            AdaDetect_classifier = "ResNet18"
+            use_PCA = False
+            n_components = None
+        elif savename_list[-2] == "ResNet9":
+            AdaDetect_classifier = "ResNet9"
+            use_PCA = False
+            n_components = None
+        elif savename_list[-2] == "ResNet4":
+            AdaDetect_classifier = "ResNet4"
+            use_PCA = False
+            n_components = None
+        elif savename_list[-2] == "CNN":
+            AdaDetect_classifier = "CNN"
+            use_PCA = False
+            n_components = None
         AdaDetect_individual = False
 
     elif score_name == "OCSVM":
@@ -214,54 +263,16 @@ def main():
         model_kwargs = {"n_components": 0.8}
     elif savename_list[-1] == "ResNet18":
         model_name = "ResNet18"
-        model_kwargs = {"num_classes": len(classes)}
+        model_kwargs = {"num_classes": len(classes), "feature_dim": feature_dim}
     elif savename_list[-1] == "ResNet9":
         model_name = "ResNet9"
-        model_kwargs = {"num_classes": len(classes)}
+        model_kwargs = {"num_classes": len(classes), "feature_dim": feature_dim}
     elif savename_list[-1] == "ResNet4":
         model_name = "ResNet4"
-        model_kwargs = {"num_classes": len(classes)}
+        model_kwargs = {"num_classes": len(classes), "feature_dim": feature_dim}
     elif savename_list[-1] == "CNN":
         model_name = "CNN"
-        model_kwargs = {"num_classes": len(classes)}
-    # model_name = "KNeighborsClassifier"
-    # model_kwargs = dict()
-
-    fixed_budget = np.arange(0, K, step=5)
-
-    # num_rejection_thresholds = 11
-    # significance_levels = np.linspace(0, 1, num_rejection_thresholds)
-    # significance_levels = np.hstack((np.array([0]), np.logspace(-5, 0, num_rejection_thresholds-1)))
-    # significance_levels = [0.05, 0.2, 0.5]
-    # significance_levels = [0.05, 0.2, 0.5, 0.7]
-    # significance_levels = [0.1, 0.5, 0.9]
-    significance_levels = [0.01, 0.1]
-    # significance_levels = [0.05, 0.5]
-    num_rejection_thresholds = len(significance_levels)
-
-    use_Storey = True
-    gamma = 0.5 # Storey's hyperparameter conformal contamination test
-
-    pi_th_arr = np.linspace(0, 0.5, num=6) # Threshold conformal contamination test
-    # pi_th_arr = np.linspace(0, 0.7, num=8) # Threshold conformal contamination test
-    # pi_th_arr = np.linspace(0, 1, num=11) # Threshold conformal contamination test
-    len_pi_th_arr = len(pi_th_arr)
-
-    # pi_th_arr_oracle = np.linspace(0.1, 0.9, num=9) # Threshold conformal contamination test
-    # pi_th_arr_oracle = np.linspace(0.05, 0.95, num=19) # Threshold conformal contamination test
-    pi_th_arr_oracle = np.linspace(0, 1, num=21) # Threshold conformal contamination test
-    # pi_th_arr_oracle = np.linspace(0, 1, num=11) # Threshold conformal contamination test
-    len_pi_th_arr_oracle = len(pi_th_arr_oracle)
-
-    # chosen_pi_th_idx = 0
-    beta = -1 # Significance level conformal outlier detection
-    zeta = -1 # Storey's hyperparameter conformal outlier detection
-
-    lambda_ = n//8 / (n+1)
-    i0_param = 3
-    i0_arr = [mr0//i0_param for pi_th in pi_th_arr]
-
-    # savename = "temp"
+        model_kwargs = {"num_classes": len(classes), "feature_dim": feature_dim}
 
     with open(f"ProposedAccuracy/{savename}.txt", "w") as file:
         file.write(f"sims: {sims:d}\n")
@@ -323,9 +334,10 @@ def main():
     ### Class preparation ###
     data_handler = DataHandler(data_name, feature_noise=feature_noise, feature_noise_type=feature_noise_type,
                                classes=classes, alt_classes=alt_classes, bin_p=bin_p, repeats=repeats, block_size=block_size,
-                               std=std, distance_cov=distance_cov, cifar10_noise_type=cifar10_noise_type)
+                               std=std, distance_cov=distance_cov, cifar10_noise_type=cifar10_noise_type, imagenet_noise_type=imagenet_noise_type)
     score_handler = ConformalScore(score_name, labels=classes, classifier=AdaDetect_classifier,
-                                   use_PCA=use_PCA, n_components=n_components)
+                                   shape=shape, use_PCA=use_PCA, n_components=n_components,
+                                   feature_dim = feature_dim)
     test_handler = ConformalContaminationTest()
     model_handler = SupervisedMachineLearning(model_name, **model_kwargs)
 
@@ -347,12 +359,6 @@ def main():
         bought_data_baselines_COD = np.zeros((sims, len(fixed_budget)+1), dtype=np.float32)
         used_data_baselines_COD = np.zeros((sims, len(fixed_budget)+1), dtype=np.float32)
         CODTest_data_baselines_COD = np.zeros((sims, len(fixed_budget), 2), dtype=np.float32)
-
-    # if "DataCV_COD" in include:
-    #     model_scores_DataCV_COD = np.zeros((sims, K+1), dtype=np.float32)
-    #     bought_data_DataCV_COD = np.zeros((sims, K+1), dtype=np.float32)
-    #     used_data_DataCV_COD = np.zeros((sims, K+1), dtype=np.float32)
-    #     CODTest_data_DataCV_COD = np.zeros((sims, K, 2), dtype=np.float32)
 
     if "oracle" in include:
         model_scores_oracles = np.zeros((sims, len(fixed_budget)), dtype=np.float32)
@@ -424,6 +430,9 @@ def main():
                                                 pi_k=pi_k, randomize=randomize, mr0=mr0, mr1=mr1, T=T, bin_p=bin_p, repeats=repeats, block_size=block_size,
                                                 std=std, distance_cov=distance_cov, std_alt=std_alt, distance_cov_alt=distance_cov_alt,
                                                 alt_noise_type=alt_noise_type, bin_p_alt=bin_p_alt)
+        if "pi_k" in data_dict.keys():
+            pi_k = data_dict["pi_k"]
+            pi_true[sim, :] = data_dict["pi_k"]
 
         ### Organize data (part 1) ###
         train_data = data_dict["Agent0_train"][0]
@@ -445,28 +454,31 @@ def main():
 
         if "baseline" in include:
             ### Baseline: no data sharing ###
+            print(sim, "No data sharing")
             model_handler.fit(train_data, train_labels) # SLOW
-            model_scores_baselines[sim, 0] = model_handler.score(test_data, test_labels)
+            model_scores_baselines[sim, 0] = model_handler.score(test_data, test_labels, feature_dim)
+            # print(model_scores_baselines[sim, 0])
             bought_data_baselines[sim, 0] = 0
             used_data_baselines[sim, 0] = train_data.shape[0]
 
             ### Baseline : rho-fixed data sharing ###
             for rho_idx, rho in enumerate(fixed_budget):
-                print("\t Random:", rho, "/", K-1)
+                print(sim, "\t Random:", rho, "/", K-1)
                 additional_train_data, additional_train_labels \
                     = ut.import_data_time2_fixed(data_dict, rho, K, potential_train_data, potential_train_labels)
 
                 temp_train_data = np.concatenate((train_data, additional_train_data), axis=0)
                 temp_train_labels = np.hstack((train_labels, additional_train_labels))
                 model_handler.fit(temp_train_data, temp_train_labels) # SLOW
-                model_scores_baselines[sim, rho_idx+1] = model_handler.score(test_data, test_labels)
+                model_scores_baselines[sim, rho_idx+1] = model_handler.score(test_data, test_labels, feature_dim)
+                # print(model_scores_baselines[sim, rho_idx+1])
                 bought_data_baselines[sim, rho_idx+1] = mr0*(K-1) + mr1*rho
                 used_data_baselines[sim, rho_idx+1] = temp_train_data.shape[0]
 
         if "baseline_COD" in include:
             ## Baseline : rho-fixed data sharing with conformal outlier detection ###
             for rho_idx, rho in enumerate(fixed_budget):
-                print("\t Random (COD):", rho, "/", K-1)
+                print(sim, "\t Random (COD):", rho, "/", K-1)
                 temp_indicator_arr = ut.choose_data_subset_fixed(rho, K, mr0, mr1)
                 temp_conformal_pvalues = allin_conformal_pvalues[temp_indicator_arr]
                 temp_potential_train_data, temp_potential_train_labels \
@@ -493,20 +505,17 @@ def main():
                 temp_train_labels = np.hstack((train_labels, additional_train_labels))
 
                 model_handler.fit(temp_train_data, temp_train_labels) # SLOW
-                model_scores_baselines_COD[sim, rho_idx] = model_handler.score(test_data, test_labels)
+                model_scores_baselines_COD[sim, rho_idx] = model_handler.score(test_data, test_labels, feature_dim)
                 bought_data_baselines_COD[sim, rho_idx] = mr0*(K-1) + mr1*rho
                 used_data_baselines_COD[sim, rho_idx] = temp_train_data.shape[0]
                 CODTest_data_baselines_COD[sim, rho_idx, 0] = FDP
                 CODTest_data_baselines_COD[sim, rho_idx, 1] = TDP
 
-        if "DataCV_COD" in include:
-            pass
-
         if "oracle" in include:
             ### Baseline: oracle budget based ###
             sort_idx = np.argsort(pi_k)
             for rho_idx, rho in enumerate(fixed_budget):
-                print("\t Oracle:", rho, "/", K-1)
+                print(sim, "\t Oracle:", rho, "/", K-1)
                 additional_train_data, additional_train_labels, additional_train_null_indicator \
                     = ut.import_data_time2_oracle(data_dict, rho, K, potential_train_data,
                                                   potential_train_labels, potential_train_null_indicator, sort_idx)
@@ -516,14 +525,15 @@ def main():
                 temp_train_data = np.concatenate((train_data, additional_train_data), axis=0)
                 temp_train_labels = np.hstack((train_labels, additional_train_labels))
                 model_handler.fit(temp_train_data, temp_train_labels) # SLOW
-                model_scores_oracles[sim, rho_idx] = model_handler.score(test_data, test_labels)
+                model_scores_oracles[sim, rho_idx] = model_handler.score(test_data, test_labels, feature_dim)
+                # print(model_scores_oracles[sim, rho_idx])
                 bought_data_oracles[sim, rho_idx] = mr0*(K-1) + mr1*rho
                 used_data_oracles[sim, rho_idx] = temp_train_data.shape[0]
 
         if "oracleth" in include:
             ### Baseline: oracle threshold based ###
             for pi_th_idx, pi_th in enumerate(pi_th_arr_oracle):
-                print("\t Oracle threshold:", pi_th_idx+1, "/", len_pi_th_arr_oracle)
+                print(sim, "\t Oracle threshold:", pi_th_idx+1, "/", len_pi_th_arr_oracle)
                 additional_train_data, additional_train_labels, additional_train_null_indicator \
                     = ut.import_data_time2_oracleth(data_dict, pi_th, pi_k)
 
@@ -532,7 +542,8 @@ def main():
                 temp_train_data = np.concatenate((train_data, additional_train_data), axis=0)
                 temp_train_labels = np.hstack((train_labels, additional_train_labels))
                 model_handler.fit(temp_train_data, temp_train_labels) # SLOW
-                model_scores_oraclesth[sim, pi_th_idx] = model_handler.score(test_data, test_labels)
+                model_scores_oraclesth[sim, pi_th_idx] = model_handler.score(test_data, test_labels, feature_dim)
+                # print(model_scores_oraclesth[sim, pi_th_idx])
                 bought_data_oraclesth[sim, pi_th_idx] = mr0*(K-1) + mr1*np.sum(pi_k <= pi_th)
                 used_data_oraclesth[sim, pi_th_idx] = temp_train_data.shape[0]
 
@@ -540,7 +551,7 @@ def main():
             ### Baseline: oracle with conformal outlier detection ###
             sort_idx = np.argsort(pi_k)
             for rho_idx, rho in enumerate(fixed_budget):
-                print("\t Oracle all data:", rho, "/", K-1)
+                print(sim, "\t Oracle all data:", rho, "/", K-1)
                 temp_indicator_arr = ut.choose_data_subset_oracle(rho, K, mr0, mr1, sort_idx)
                 temp_conformal_pvalues = allin_conformal_pvalues[temp_indicator_arr]
                 temp_potential_train_data, temp_potential_train_labels \
@@ -567,7 +578,8 @@ def main():
                 temp_train_labels = np.hstack((train_labels, additional_train_labels))
 
                 model_handler.fit(temp_train_data, temp_train_labels) # SLOW
-                model_scores_partoracles[sim, rho_idx] = model_handler.score(test_data, test_labels)
+                model_scores_partoracles[sim, rho_idx] = model_handler.score(test_data, test_labels, feature_dim)
+                # print(model_scores_partoracles[sim, rho_idx])
                 bought_data_partoracles[sim, rho_idx] = mr0*(K-1) + mr1*rho
                 used_data_partoracles[sim, rho_idx] = temp_train_data.shape[0]
                 CODTest_data_partoracles[sim, rho_idx, 0] = FDP
@@ -576,7 +588,7 @@ def main():
         if "oracle_CODth" in include:
             ### Baseline: oracle with contamination threshold and conformal outlier detection ###
             for pi_th_idx, pi_th in enumerate(pi_th_arr_oracle):
-                print("\t Oracle threshold all data:", pi_th_idx+1, "/", len_pi_th_arr_oracle)
+                print(sim, "\t Oracle threshold all data:", pi_th_idx+1, "/", len_pi_th_arr_oracle)
                 temp_indicator_arr = ut.choose_data_subset_oracle_th(pi_th, mr0, mr1, pi_k)
                 temp_conformal_pvalues = allin_conformal_pvalues[temp_indicator_arr]
                 temp_potential_train_data, temp_potential_train_labels \
@@ -603,7 +615,8 @@ def main():
                 temp_train_labels = np.hstack((train_labels, additional_train_labels))
 
                 model_handler.fit(temp_train_data, temp_train_labels) # SLOW
-                model_scores_partoracles_th[sim, pi_th_idx] = model_handler.score(test_data, test_labels)
+                model_scores_partoracles_th[sim, pi_th_idx] = model_handler.score(test_data, test_labels, feature_dim)
+                # print(model_scores_partoracles_th[sim, pi_th_idx])
                 bought_data_partoracles_th[sim, pi_th_idx] = mr0*(K-1) + mr1*np.sum(pi_k <= pi_th)
                 used_data_partoracles_th[sim, pi_th_idx] = temp_train_data.shape[0]
                 CODTest_data_partoracles_th[sim, pi_th_idx, 0] = FDP
@@ -612,7 +625,7 @@ def main():
         if "oracle_CODth_picky" in include:
             ### Baseline: oracle with contamination threshold and conformal outlier detection ###
             for pi_th_idx, pi_th in enumerate(pi_th_arr_oracle):
-                print("\t Oracle threshold picky:", pi_th_idx+1, "/", len_pi_th_arr_oracle)
+                print(sim, "\t Oracle threshold picky:", pi_th_idx+1, "/", len_pi_th_arr_oracle)
                 temp_indicator_arr = ut.choose_data_subset_oracle_th_picky(pi_th, mr0, mr1, pi_k)
                 temp_conformal_pvalues = allin_conformal_pvalues[temp_indicator_arr]
                 temp_potential_train_data, temp_potential_train_labels \
@@ -639,7 +652,7 @@ def main():
                 temp_train_labels = np.hstack((train_labels, additional_train_labels))
 
                 model_handler.fit(temp_train_data, temp_train_labels) # SLOW
-                model_scores_partoracles_th_picky[sim, pi_th_idx] = model_handler.score(test_data, test_labels)
+                model_scores_partoracles_th_picky[sim, pi_th_idx] = model_handler.score(test_data, test_labels, feature_dim)
                 bought_data_partoracles_th_picky[sim, pi_th_idx] = mr0*(K-1) + mr1*np.sum(pi_k <= pi_th)
                 used_data_partoracles_th_picky[sim, pi_th_idx] = temp_train_data.shape[0]
                 CODTest_data_partoracles_th_picky[sim, pi_th_idx, 0] = FDP
@@ -648,7 +661,6 @@ def main():
         ### Run conformal contamination test ###
         test_scores = np.zeros((K-1, mr0), dtype=np.float64)
         for k in range(1, K):
-            # test_scores[k-1] = score_handler.score(data_dict[f"Agent{k}_Time{0}_test"][0], data_dict[f"Agent{k}_Time{0}_test"][1])
             test_scores[k-1] = allin_data_scores[(k-1)*mr0:k*mr0]
 
         pcon = np.zeros((len(pi_th_arr), K-1, 4), dtype=np.float32)
@@ -658,7 +670,6 @@ def main():
                     = test_handler.all_conformal_contamination_tests(calibration_scores, test_scores[k-1],
                       pi_th=pi_th, n=n, m=mr0, lambda_=lambda_, i0=i0_arr[pi_th_idx])
                 pcon_total[sim] = pcon
-                # print(pcon)
 
         rejectBoolCCTest = np.zeros((len(pi_th_arr), num_rejection_thresholds, 4, K-1), dtype=bool)
         for idx_alpha, alpha in enumerate(significance_levels):
@@ -697,18 +708,19 @@ def main():
         if "proposed" in include:
             for idx_alpha, alpha in enumerate(significance_levels):
                 for pi_th_idx, pi_th in enumerate(pi_th_arr):
-                    print(f"\t Proposed: ({idx_alpha+1}, {pi_th_idx+1}) / ({num_rejection_thresholds}, {len_pi_th_arr})")
+                    print(sim, f"\t Proposed: ({idx_alpha+1}, {pi_th_idx+1}) / ({num_rejection_thresholds}, {len_pi_th_arr})")
                     for idx in proposed_idx_include:
                         bought_data_proposed[sim, pi_th_idx, idx_alpha, idx] = mr0*(K-1) + mr1*((K-1) - np.sum(rejectBoolCCTest[pi_th_idx, idx_alpha, idx, :]))
                         model_scores_proposed[sim, pi_th_idx, idx_alpha, idx], used_data_proposed[sim, pi_th_idx, idx_alpha, idx], \
                         CODTest_data_proposed[sim, pi_th_idx, idx_alpha, idx, 0], CODTest_data_proposed[sim, pi_th_idx, idx_alpha, idx, 1] \
                             = ut.proposed(rejectBoolCCTest[pi_th_idx, idx_alpha, idx, :], K, mr0, mr1, allin_conformal_pvalues,
                                           allin_train_data, allin_train_labels, train_data, train_labels,
-                                          zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels)
+                                          zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels, feature_dim)
+                        # print(model_scores_proposed[sim, pi_th_idx, idx_alpha, idx])
 
         if "proposed_budget" in include:
             for rho_idx, rho in enumerate(fixed_budget):
-                print("\t Proposed budget:", rho, "/", K-1)
+                print(sim, "\t Proposed budget:", rho, "/", K-1)
                 for idx in proposed_idx_include:
                     rejectBool_ = np.zeros(K-1, dtype=bool)
                     stat = pcon[0, :, idx]
@@ -719,19 +731,21 @@ def main():
                     CODTest_data_proposed_budget[sim, rho_idx, idx, 0], CODTest_data_proposed_budget[sim, rho_idx, idx, 1] \
                         = ut.proposed(rejectBool_, K, mr0, mr1, allin_conformal_pvalues,
                                       allin_train_data, allin_train_labels, train_data, train_labels,
-                                      zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels)
+                                      zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels, feature_dim)
+                    # print(model_scores_proposed_budget[sim, rho_idx, idx])
 
         if "proposed_picky" in include:
             for idx_alpha, alpha in enumerate(significance_levels):
                 for pi_th_idx, pi_th in enumerate(pi_th_arr):
-                    print(f"\t Proposed picky: ({idx_alpha+1}, {pi_th_idx+1}) / ({num_rejection_thresholds}, {len_pi_th_arr})")
+                    print(sim, f"\t Proposed picky: ({idx_alpha+1}, {pi_th_idx+1}) / ({num_rejection_thresholds}, {len_pi_th_arr})")
                     for idx in proposed_idx_include:
                         bought_data_proposed_picky[sim, pi_th_idx, idx_alpha, idx] = mr0*(K-1) + mr1*((K-1) - np.sum(rejectBoolCCTest[pi_th_idx, idx_alpha, idx, :]))
                         model_scores_proposed_picky[sim, pi_th_idx, idx_alpha, idx], used_data_proposed_picky[sim, pi_th_idx, idx_alpha, idx], \
                         CODTest_data_proposed_picky[sim, pi_th_idx, idx_alpha, idx, 0], CODTest_data_proposed_picky[sim, pi_th_idx, idx_alpha, idx, 1] \
                             = ut.proposed_picky(rejectBoolCCTest[pi_th_idx, idx_alpha, idx, :], K, mr0, mr1, allin_conformal_pvalues,
                                                 allin_train_data, allin_train_labels, train_data, train_labels,
-                                                zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels)
+                                                zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels, feature_dim)
+
 
     kwds = {"pi_true": pi_true,
             "pcon_total": pcon_total,
@@ -747,12 +761,6 @@ def main():
                      "bought_data_baselines_COD": bought_data_baselines_COD,
                      "used_data_baselines_COD": used_data_baselines_COD,
                      "CODTest_data_baselines_COD": CODTest_data_baselines_COD})
-
-    # if "DataCV_COD" in include:
-    #     kwds.update({"model_scores_DataCV_COD": model_scores_DataCV_COD,
-    #                  "bought_data_DataCV_COD": bought_data_DataCV_COD,
-    #                  "used_data_DataCV_COD": used_data_DataCV_COD,
-    #                  "CODTest_data_DataCV_COD": CODTest_data_DataCV_COD})
 
     if "oracle" in include:
         kwds.update({"model_scores_oracles": model_scores_oracles,
@@ -788,7 +796,7 @@ def main():
                      "used_data_proposed": used_data_proposed,
                      "CODTest_data_proposed": CODTest_data_proposed})
 
-    if "proposed budget" in include:
+    if "proposed_budget" in include:
         kwds.update({"model_scores_proposed_budget": model_scores_proposed_budget,
                      "bought_data_proposed_budget": bought_data_proposed_budget,
                      "used_data_proposed_budget": used_data_proposed_budget,
@@ -802,24 +810,6 @@ def main():
 
     np.savez(f"ProposedAccuracy/{savename}.npz", **kwds)
 
-    # np.savez(f"ProposedAccuracy/{savename}.npz",
-    #          model_scores_baselines = model_scores_baselines, bought_data_baselines = bought_data_baselines, used_data_baselines = used_data_baselines,
-    #          model_scores_baselines_COD = model_scores_baselines_COD, bought_data_baselines_COD = bought_data_baselines_COD, used_data_baselines_COD = used_data_baselines_COD,
-    #          CODTest_data_baselines_COD = CODTest_data_baselines_COD,
-    #          model_scores_oracles = model_scores_oracles, bought_data_oracles = bought_data_oracles, used_data_oracles = used_data_oracles,
-    #          model_scores_oraclesth = model_scores_oraclesth, bought_data_oraclesth = bought_data_oraclesth, used_data_oraclesth = used_data_oraclesth,
-    #          model_scores_partoracles = model_scores_partoracles, bought_data_partoracles = bought_data_partoracles, used_data_partoracles = used_data_partoracles,
-    #          CODTest_data_partoracles = CODTest_data_partoracles,
-    #          model_scores_partoracles_th = model_scores_partoracles_th, bought_data_partoracles_th = bought_data_partoracles_th, used_data_partoracles_th = used_data_partoracles_th,
-    #          CODTest_data_partoracles_th = CODTest_data_partoracles_th,
-    #          model_scores_partoracles_th_picky = model_scores_partoracles_th_picky, bought_data_partoracles_th_picky = bought_data_partoracles_th_picky, used_data_partoracles_th_picky = used_data_partoracles_th_picky,
-    #          CODTest_data_partoracles_th_picky = CODTest_data_partoracles_th_picky,
-    #          model_scores_proposed = model_scores_proposed, bought_data_proposed = bought_data_proposed, used_data_proposed = used_data_proposed,
-    #          pcon_total = pcon_total, CCTest_data_proposed = CCTest_data_proposed, CODTest_data_proposed = CODTest_data_proposed,
-    #          model_scores_proposed_picky = model_scores_proposed_picky, bought_data_proposed_picky = bought_data_proposed_picky, used_data_proposed_picky = used_data_proposed_picky,
-    #          CODTest_data_proposed_picky = CODTest_data_proposed_picky,
-    #          pi_true = pi_true)
-
     if "baseline" in include:
         model_scores_baselines_mean = np.mean(model_scores_baselines, axis=0)
         bought_data_baselines_mean = np.mean(bought_data_baselines, axis=0)
@@ -827,10 +817,6 @@ def main():
     if "baseline_COD" in include:
         model_scores_baselines_COD_mean = np.mean(model_scores_baselines_COD, axis=0)
         bought_data_baselines_COD_mean = np.mean(bought_data_baselines_COD, axis=0)
-
-    # if "DataCV_COD" in include:
-    #     model_scores_DataCV_COD_mean = np.mean(model_scores_DataCV_COD, axis=0)
-    #     bought_data_DataCV_COD_mean = np.mean(bought_data_DataCV_COD, axis=0)
 
     if "oracle" in include:
         model_scores_oracles_mean = np.mean(model_scores_oracles, axis=0)
@@ -860,6 +846,9 @@ def main():
         model_scores_proposed_picky_mean = np.mean(model_scores_proposed_picky, axis=0)
         bought_data_proposed_picky_mean = np.mean(bought_data_proposed_picky, axis=0)
 
+    if "proposed_budget" in include:
+        model_scores_proposed_budget_mean = np.mean(model_scores_proposed_budget, axis=0)
+        bought_data_proposed_budget_mean = np.mean(bought_data_proposed_budget, axis=0)
 
     colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan", "k"]
     _ = plt.figure(figsize=fsize)
@@ -867,8 +856,6 @@ def main():
         plt.plot(bought_data_baselines_mean, model_scores_baselines_mean, "o", color=colors[0], label="Fixed budget")
     if "baseline_COD" in include:
         plt.plot(bought_data_baselines_COD_mean, model_scores_baselines_COD_mean, "*", color=colors[0], label="Fixed budget (COD)")
-    # if "DataCV_COD" in include:
-    #     plt.plot(bought_data_DataCV_COD_mean/m, model_scores_DataCV_COD_mean, "*", color=colors[10], label="Data CV (COD)")
     if "oracle" in include:
         plt.plot(bought_data_oracles_mean, model_scores_oracles_mean, "o", color=colors[2], label="Oracle")
     if "oracleth" in include:
@@ -887,14 +874,13 @@ def main():
     if "proposed_picky" in include:
         plt.plot(bought_data_proposed_picky_mean[:, :, 0].flatten(), model_scores_proposed_picky_mean[:, :, 0].flatten(), "x", color=colors[1], label="Storey picky")
         plt.plot(bought_data_proposed_picky_mean[:, :, 1].flatten(), model_scores_proposed_picky_mean[:, :, 1].flatten(), "x", color=colors[8], label="Quantile picky")
+    if "proposed_budget" in include:
+        plt.plot(bought_data_proposed_budget_mean[:, :, 0].flatten(), model_scores_proposed_budget_mean[:, :, 0].flatten(), "x", color=colors[1], label="Storey budget")
+        plt.plot(bought_data_proposed_budget_mean[:, :, 1].flatten(), model_scores_proposed_budget_mean[:, :, 1].flatten(), "x", color=colors[8], label="Quantile budget")
     plt.xlabel("Budget")
     plt.ylabel("Accuracy")
     plt.legend()
     plt.show()
-
-    # print(bought_data_proposed_mean[:, :, 0])
-    # print(model_scores_proposed_mean[:, :, 0])
-
 
 if __name__ == "__main__":
     main()

@@ -27,7 +27,8 @@ try:
     import torch.optim as optim
     import torchvision.transforms as transforms
     from torch.utils.data import Dataset, DataLoader, ConcatDataset
-    from ResNet18 import ResNet_18, ResNet_9, ResNet_4, CNN, train_model, CustomTensorDataset, score_model
+    from ResNet18 import ResNet_18, ResNet_9, ResNet_4, CNN, train_model, \
+        CustomTensorDataset, score_model, weight_reset
 except ModuleNotFoundError:
     print("ModuleNotFoundError: No module named 'torch'")
 
@@ -74,25 +75,25 @@ class SupervisedMachineLearning(object):
             self.SMLmodel = make_pipeline(StandardScaler(), SVC(**kwargs))
         elif type_ == "ResNet19":
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            self.SMLmodel = ResNet_18(3, kwargs["num_classes"])
+            self.SMLmodel = ResNet_18(self.feature_dim[-1], kwargs["num_classes"])
             kwargs.pop("num_classes")
             self.SMLmodel.to(self.device)
             next(self.SMLmodel.parameters()).is_cuda
         elif type_ == "ResNet9":
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            self.SMLmodel = ResNet_9(3, kwargs["num_classes"])
+            self.SMLmodel = ResNet_9(self.feature_dim[-1], kwargs["num_classes"])
             kwargs.pop("num_classes")
             self.SMLmodel.to(self.device)
             next(self.SMLmodel.parameters()).is_cuda
         elif type_ == "ResNet4":
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            self.SMLmodel = ResNet_4(3, kwargs["num_classes"])
+            self.SMLmodel = ResNet_4(self.feature_dim[-1], kwargs["num_classes"])
             kwargs.pop("num_classes")
             self.SMLmodel.to(self.device)
             next(self.SMLmodel.parameters()).is_cuda
         elif type_ == "CNN":
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            self.SMLmodel = CNN(3, kwargs["num_classes"])
+            self.SMLmodel = CNN(self.feature_dim[-1], kwargs["num_classes"])
             kwargs.pop("num_classes")
             self.SMLmodel.to(self.device)
             next(self.SMLmodel.parameters()).is_cuda
@@ -150,6 +151,7 @@ class SupervisedMachineLearning(object):
             self.SMLmodel.fit(train_PCA, train_labels)
         elif (self.type_ == "CNN") or (self.type_ == "ResNet18") \
         or (self.type_ == "ResNet9") or (self.type_ == "ResNet4"):
+            self.SMLmodel.apply(weight_reset)
             zero_sort_labels = self.zero_sort_encoding(train_labels)
             zero_sort_labels = torch.from_numpy(zero_sort_labels).type(torch.LongTensor)
             train_features = np.transpose(np.reshape(train_features.astype(np.float32),
@@ -157,12 +159,12 @@ class SupervisedMachineLearning(object):
             train_features = torch.from_numpy(train_features)
             trainset = CustomTensorDataset(train_features, zero_sort_labels)
             train_loader = DataLoader(trainset, batch_size=32, shuffle=True)
-            epochs = 50
+            epochs = 10
             criterion = nn.CrossEntropyLoss()
-            optimizer = optim.Adam(self.SMLmodel.parameters(), lr=0.0001, weight_decay=1e-4)
+            optimizer = optim.Adam(self.SMLmodel.parameters(), lr=0.0001, weight_decay=1e-2)
             lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5)
             self.SMLmodel = train_model(self.SMLmodel, {"train": train_loader}, criterion,
-                                        optimizer, lr_scheduler, self.device, epochs, verbose=False)
+                                        optimizer, lr_scheduler, self.device, epochs, verbose=True)
 
     def predict(self, test_features):
         """

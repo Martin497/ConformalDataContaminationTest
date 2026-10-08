@@ -1,46 +1,44 @@
-# Conformal Data Contamination Tests for Trading or Sharing of Data
-This repository contains the code library used to create the results of the paper `Conformal Data Contamination Tests for Trading or Sharing of Data` submitted to NeurIPS'25.
+# Conformal Data Contamination Tests for In-distribution Data Acquisition
+This repository contains the code library used to create the results of the paper `Conformal Data Contamination Tests for In-distribution Data Acquisition`, Transactions on Machine Learning Research, 2026.
 
 ## Contents
 ### Modules
 - Benjamini_Hochberg.py `Base functionality to run adaptive Benjamini-Hochberg procedure.`
 - ConformalContaminationTestModule.py `Class for computing conformal data contamination test statistics and p-values.`
 - ConformalScoreModule.py `Class for computing conformal scores.`
-- DataHandlerModule.py `Class for loading and organizing the MNIST and FEMNIST data.`
+- DataHandlerModule.py `Class for loading, organizing, and sampling the data.`
 - SupervisedMachineLearningModule.py `Class for fitting and evaluating classifiers.`
 - utilities.py `Various functionality used in main scripts.`
+- autoencoder.py `Base implementation of an autoencoder.`
+- ResNet18.py `Base implementation of convolutional neural networks and residual networks.`
 
 ### Simulation scripts
-- BudgetAccuracy.py `Run a simulation study with the proposed procedure and the baselines using a fixed budget and computing classification accuracies - See Section 4.`
-- BudgetAccuracyCV.py `Run a simulation study with the proposed procedure and the baselines selecting the budget based on the data in the first round - See Section S4.`
-- ScoringAnalysis.py `Run a simulation study with the proposed procedure and the baselines evaluating only the conformal data contamination tests.`
+- ProposedAccuracy.py `Run a simulation study with the proposed procedure and the baselines - See Section 4 and Section D4.`
+- ProposedAccuracyCV.py `Run a simulation study with the proposed procedure and the baselines selecting hyperparameters based on the data in the first round - See Section D5.`
+- ScoringAnalysis.py `Run a simulation study with the proposed procedure and the baselines evaluating only the conformal data contamination tests - See Section 4 and Section D4.`
 
 ### Recreating figures and table
-- Figures 2 and 8: ScoringResults/ScoringResultsLoad.py
-- Figure 3: BudgetAccuracy/BudgetAccuracyLoad.py
-- Table 1: ScoringResults/ScoringResultsLoad.py
-- Table 4: BudgetAccuracyCV/BudgetAccuracyCVLoad.py
+- Figure 2: ScoringAnalysis/ScoringResultsLoad.py
+- Table 1: ScoringAnalysis/ScoringBH.py
+- Figure A5: ScoringAnalysis/CODplot.py
+- Tables A3-A5: ScoringAnalysis/AUCtables.py
+- Table A6: ScoringAnalysis/TDRtables.py
+- Tables A7-A8: ScoringAnalysis/FDRtables.py
+- Figures 3 & A6: ProposedAccuracy/ProposedAccuracyLoad.py
+- Table A9: ProposedAccuracyCV/ProposedAccuracyCVLoad.py
 
 ## Software Setup
 
 ### Python dependencies
 ```
-python 3
-numpy
-matplotlib
-pandas
-scipy
-scikit-learn
-pytorch
+python 3.12.4
+numpy 2.0
+matplotlib 3.9.1
+pandas 2.2.2
+scipy 1.14
+scikit-learn 1.5.1
+tensorflow 2.11.0
 ```
 
-## Data Setup
-
-### FEMNIST
-- Step 1: Download `femnist.tar.gz` from `https://github.com/GwenLegate/femnist-dataset-PyTorch`.
-- Step 2: Unzip `femnist.tar.gz` yielding a folder `femnist` with files `femnist_test.pt`, `femnist_train.pt`, and `femnist_user_keys.pt`.
-- Step 3: Move `femnist_test.pt` and `femnist_train.pt` to the `FEMNIST` folder in this repo.
-- Step 4: Execute the `femnist_pt_to_npy.py` script in the `FEMNIST` folder to have the data in the desired format.
-
-### MNIST
-- Included in this repo in folder `MNIST_CSV`.
+## Data
+This folder includes the retinal fundus image data and the MNIST data. The data for the other examples are not included here due to space limitations. Additionally, scripts and data results to generate Figures 2 and A5 as well as tables 1 and A3-A8 are not included due to space limitations.

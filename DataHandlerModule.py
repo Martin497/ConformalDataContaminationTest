@@ -9,10 +9,7 @@ artificial noise. This module is also responsible for implementing data contamin
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
 from copy import deepcopy
-import pickle
 
 
 class DataHandler(object):
@@ -29,8 +26,8 @@ class DataHandler(object):
         Inputs:
         -------
             type_ : str
-                Options are "MNIST", "MNIST_partial", "FEMNIST_partial", "retina", "EyePACS",
-                "EyePACS_wtest", "retinalOCT", "retinalOCT_partial", "WBC", "cifar10".
+                Options are "MNIST_partial", "FEMNIST_partial",
+                "retina","retinalOCT_partial", "WBC_partial".
             feature_noise : str
                 Use option "test" when using feature noise and use option
                 "train_test" otherwise. Default is "train_test"
@@ -39,83 +36,53 @@ class DataHandler(object):
         """
         super(DataHandler, self).__init__()
         type_options = ["MNIST", "MNIST_partial", "FEMNIST_partial", "retina", "EyePACS",
-                        "EyePACS_wtest", "retinalOCT", "retinalOCT_partial", "WBC_partial",
-                        "cifar10", "imagenet"]
+                        "EyePACS_wtest", "retinalOCT", "retinalOCT_partial", "WBC_partial"]
         assert type_ in type_options, "The chosen data set is not supported."
         self.type_ = type_
         self.feature_noise = feature_noise
         self.feature_noise_type = feature_noise_type
-        if type_ == "MNIST":
-            train = pd.read_csv("MNIST_CSV/mnist_train.csv", header=None).to_numpy().astype(np.float32)
-            self.train_data = train[:, 1:]  / 255
-            self.train_labels = train[:, 0].astype(np.int16)
-            self.n_train, self.d = self.train_data.shape
-            self.num_classes = len(np.unique(self.train_labels))
-            test = pd.read_csv("MNIST_CSV/mnist_test.csv", header=None).to_numpy().astype(np.float32)
-            self.test_data = test[:, 1:] / 255
-            self.test_labels = test[:, 0].astype(np.int16)
-            self.n_test, _ = self.test_data.shape
-        elif type_ == "MNIST_partial":
-            classes = kwargs.get("classes", [0, 1])
+        if type_ == "MNIST_partial":
+            classes = kwargs.get("classes", [1, 4, 7])
             self.classes = classes
-            train = pd.read_csv("MNIST_CSV/mnist_train.csv", header=None).to_numpy().astype(np.float32)
-            indicator_arr_train = np.logical_or.reduce([train[:, 0] == class_ for class_ in classes])
+            train = np.load("MNIST/MNIST_format.npy").astype(np.float32)
+            self.train_labels = np.load("MNIST/MNIST_format_labels.npy").astype(np.int16)
+            indicator_arr_train = np.logical_or.reduce([self.train_labels == class_ for class_ in classes])
             train = train[indicator_arr_train]
-            self.train_data = train[:, 1:] / 255
-            self.train_labels = train[:, 0].astype(np.int16)
+            self.train_data = train / 255
             self.n_train, self.d = self.train_data.shape
             self.num_classes = len(np.unique(self.train_labels))
-            test = pd.read_csv("MNIST_CSV/mnist_test.csv", header=None).to_numpy().astype(np.float32)
-            indicator_arr_test = np.logical_or.reduce([test[:, 0] == class_ for class_ in classes])
+            test = np.load("MNIST/test_MNIST_format.npy").astype(np.float32)
+            self.test_labels = np.load("MNIST/test_MNIST_format_labels.npy").astype(np.int16)
+            indicator_arr_test = np.logical_or.reduce([self.test_labels == class_ for class_ in classes])
             test = test[indicator_arr_test]
-            self.test_data = test[:, 1:] / 255
-            self.test_labels = test[:, 0].astype(np.int16)
+            self.test_data = test / 255
             self.n_test, _ = self.test_data.shape
-            print(self.train_data.shape, self.test_data.shape)
-
         elif type_ == "FEMNIST_partial":
-            self.null_classes = kwargs.get("classes", [10, 11])
-            self.alt_classes = kwargs.get("alt_classes", [36, 37])
+            self.null_classes = kwargs.get("classes", [10, 11, 12])
+            self.alt_classes = kwargs.get("alt_classes", [36, 37, 38])
             self.classes = self.null_classes + self.alt_classes
-            train = np.load("FEMNIST/femnist_train.npy").astype(np.float32)
-            indicator_arr_train = np.logical_or.reduce([train[:, 0] == class_ for class_ in self.classes])
+            train = np.load("FEMNIST/femnist_MNIST_format.npy").astype(np.float32)
+            self.train_labels = np.load("FEMNIST/femnist_MNIST_format_labels.npy").astype(np.int16)
+            indicator_arr_train = np.logical_or.reduce([self.train_labels == class_ for class_ in self.classes])
             train = train[indicator_arr_train]
-            self.train_data = train[:, 1:]
-            self.train_labels = train[:, 0].astype(np.int16)
+            self.train_data = train / 255
             self.n_train, self.d = self.train_data.shape
             self.num_classes = len(np.unique(self.train_labels))
-            test = np.load("FEMNIST/femnist_test.npy").astype(np.float32)
-            indicator_arr_test = np.logical_or.reduce([test[:, 0] == class_ for class_ in self.null_classes])
+            test = np.load("FEMNIST/test_femnist_MNIST_format.npy").astype(np.float32)
+            self.test_labels = np.load("FEMNIST/test_femnist_MNIST_format_labels.npy").astype(np.int16)
+            indicator_arr_test = np.logical_or.reduce([self.test_labels == class_ for class_ in self.null_classes])
             test = test[indicator_arr_test]
-            self.test_data = test[:, 1:]
-            self.test_labels = test[:, 0].astype(np.int16)
+            self.test_data = test / 255
             self.n_test, _ = self.test_data.shape
             self.num_test_classes = len(np.unique(self.test_labels))
         elif type_ == "retina":
-            try:
-                from medmnist import RetinaMNIST
-                try:
-                    train_set = RetinaMNIST(split="train")
-                    val_set = RetinaMNIST(split="val")
-                    test_set = RetinaMNIST(split="test")
-                except:
-                    train_set = RetinaMNIST(split="train", download=True)
-                    val_set = RetinaMNIST(split="val", download=True)
-                    test_set = RetinaMNIST(split="test", download=True)
-                train_images = train_set.imgs
-                val_images = val_set.imgs
-                test_images = test_set.imgs
-                train_labels = train_set.labels
-                val_labels = val_set.labels
-                test_labels = test_set.labels
-            except ImportError:
-                in_data = np.load("medmnist/retinamnist.npz")
-                train_images = in_data["train_images"]
-                val_images = in_data["val_images"]
-                test_images = in_data["test_images"]
-                train_labels = in_data["train_labels"]
-                val_labels = in_data["val_labels"]
-                test_labels = in_data["test_labels"]
+            in_data = np.load("medmnist/retinamnist.npz")
+            train_images = in_data["train_images"]
+            val_images = in_data["val_images"]
+            test_images = in_data["test_images"]
+            train_labels = in_data["train_labels"]
+            val_labels = in_data["val_labels"]
+            test_labels = in_data["test_labels"]
 
             self.train_data = np.concatenate((train_images, val_images), axis=0).reshape((-1, 28**2*3)).astype(np.float32) / 255
             self.train_labels = np.hstack((train_labels[:, 0], val_labels[:, 0])).astype(np.int16)
@@ -127,134 +94,18 @@ class DataHandler(object):
             self.train_data_alt = np.load("EyePACS/eyepacs_MNIST_format.npy").reshape((-1, 28**2*3)).astype(np.float32) / 255
             self.train_labels_alt = np.load("EyePACS/eyepacs_MNIST_format_labels.npy")
             self.n_train_alt = len(self.train_labels_alt)
-        elif type_ == "EyePACS":
-            data_null = np.load("EyePACS/eyepacs_MNIST_format.npy").reshape((-1, 28**2*3)).astype(np.float32) / 255
-            labels_null = np.load("EyePACS/eyepacs_MNIST_format_labels.npy")
-            self.train_data = data_null[:-500]
-            self.train_labels = labels_null[:-500]
-            self.test_data = data_null[-500:]
-            self.test_labels = labels_null[-500:]
-            self.n_train, self.d = self.train_data.shape
-            self.n_test, _ = self.test_data.shape
-            self.null_classes = [0, 1, 2, 3, 4]
-            try:
-                from medmnist import RetinaMNIST
-                try:
-                    train_set = RetinaMNIST(split="train")
-                    test_set = RetinaMNIST(split="test")
-                    val_set = RetinaMNIST(split="val")
-                except:
-                    train_set = RetinaMNIST(split="train", download=True)
-                    test_set = RetinaMNIST(split="test", download=True)
-                    val_set = RetinaMNIST(split="val", download=True)
-                train_images = train_set.imgs
-                val_images = val_set.imgs
-                test_images = test_set.imgs
-                train_labels = train_set.labels
-                val_labels = val_set.labels
-                test_labels = test_set.labels
-            except ImportError:
-                in_data = np.load("medmnist/retinamnist.npz")
-                train_images = in_data["train_images"]
-                val_images = in_data["val_images"]
-                test_images = in_data["test_images"]
-                train_labels = in_data["train_labels"]
-                val_labels = in_data["val_labels"]
-                test_labels = in_data["test_labels"]
-            self.train_data_alt = np.concatenate((train_images, val_images, test_images), axis=0).reshape((-1, 28**2*3)).astype(np.float32) / 255
-            self.train_labels_alt = np.hstack((train_labels[:, 0], val_labels[:, 0], test_labels[:, 0])).astype(np.int16)
-            self.n_train_alt = len(self.train_labels_alt)
-        elif type_ == "EyePACS_wtest":
-            data_null_train = np.load("EyePACS/eyepacs_MNIST_format.npy").reshape((-1, 28**2*3)).astype(np.float32) / 255
-            labels_null_train = np.load("EyePACS/eyepacs_MNIST_format_labels.npy")
-            data_null_test = np.load("EyePACS/test_eyepacs_MNIST_format.npy").reshape((-1, 28**2*3)).astype(np.float32) / 255
-            labels_null_test = -np.ones(data_null_test.shape[0])
-            data_null = np.concatenate((data_null_train, data_null_test), axis=0)
-            labels_null = np.hstack((labels_null_train, labels_null_test))
-            self.train_data = data_null[:-500]
-            self.train_labels = labels_null[:-500]
-            self.test_data = data_null[-500:]
-            self.test_labels = labels_null[-500:]
-            self.n_train, self.d = self.train_data.shape
-            self.n_test, _ = self.test_data.shape
-            self.null_classes = [0, 1, 2, 3, 4]
-            # print(self.n_train)
-            try:
-                from medmnist import RetinaMNIST
-                try:
-                    train_set = RetinaMNIST(split="train")
-                    test_set = RetinaMNIST(split="test")
-                    val_set = RetinaMNIST(split="val")
-                except:
-                    train_set = RetinaMNIST(split="train", download=True)
-                    test_set = RetinaMNIST(split="test", download=True)
-                    val_set = RetinaMNIST(split="val", download=True)
-                train_images = train_set.imgs
-                val_images = val_set.imgs
-                test_images = test_set.imgs
-                train_labels = train_set.labels
-                val_labels = val_set.labels
-                test_labels = test_set.labels
-            except ImportError:
-                in_data = np.load("medmnist/retinamnist.npz")
-                train_images = in_data["train_images"]
-                val_images = in_data["val_images"]
-                test_images = in_data["test_images"]
-                train_labels = in_data["train_labels"]
-                val_labels = in_data["val_labels"]
-                test_labels = in_data["test_labels"]
-            self.train_data_alt = np.concatenate((train_images, val_images, test_images), axis=0).reshape((-1, 28**2*3)).astype(np.float32) / 255
-            self.train_labels_alt = np.hstack((train_labels[:, 0], val_labels[:, 0], test_labels[:, 0])).astype(np.int16)
-            self.n_train_alt = len(self.train_labels_alt)
-        elif type_ == "retinalOCT":
-            assert False, "Labels are not fully consistent. Use retinalOCT_partial instead."
-            from medmnist import OCTMNIST
-            try:
-                train_set = OCTMNIST(split="train")
-                test_set = OCTMNIST(split="test")
-                # val_set = OCTMNIST(split="val")
-            except:
-                train_set = OCTMNIST(split="train", download=True)
-                test_set = OCTMNIST(split="test", download=True)
-                # val_set = OCTMNIST(split="val", download=True)
-            self.train_data = train_set.imgs.reshape((-1, 28**2)).astype(np.float32) / 255
-            self.train_labels = train_set.labels[:, 0].astype(np.int16)
-            self.test_data = test_set.imgs.reshape((-1, 28**2)).astype(np.float32) / 255
-            self.test_labels = test_set.labels[:, 0].astype(np.int16)
-            self.n_train, self.d = self.train_data.shape
-            self.n_test, _ = self.test_data.shape
-            self.null_classes = [0, 1, 2, 3]
-            self.train_data_alt = np.load("RetinalOCT_NEH/retinalOCT_NEH_MNIST_format.npy").reshape((-1, 28**2)).astype(np.float32) / 255
-            self.train_labels_alt = np.load("RetinalOCT_NEH/retinalOCT_NEH_MNIST_format_labels_refactored.npy").astype(np.int16)
-            self.n_train_alt = len(self.train_labels_alt)
         elif type_ == "retinalOCT_partial":
             null_classes = kwargs.get("classes", [2, 3])
             self.null_classes = null_classes
             assert 1 not in null_classes, "DME class not contained in retinalOCT_NEH database!"
-            try:
-                from medmnist import OCTMNIST
-                try:
-                    train_set = OCTMNIST(split="train")
-                    test_set = OCTMNIST(split="test")
-                    val_set = OCTMNIST(split="val")
-                except:
-                    train_set = OCTMNIST(split="train", download=True)
-                    test_set = OCTMNIST(split="test", download=True)
-                    val_set = OCTMNIST(split="val", download=True)
-                train_images = train_set.imgs
-                val_images = val_set.imgs
-                test_images = test_set.imgs
-                train_labels = train_set.labels
-                val_labels = val_set.labels
-                test_labels = test_set.labels
-            except ImportError:
-                in_data = np.load("medmnist/octmnist.npz")
-                train_images = in_data["train_images"]
-                val_images = in_data["val_images"]
-                test_images = in_data["test_images"]
-                train_labels = in_data["train_labels"]
-                val_labels = in_data["val_labels"]
-                test_labels = in_data["test_labels"]
+            in_data = np.load("medmnist/octmnist.npz")
+            train_images = in_data["train_images"]
+            val_images = in_data["val_images"]
+            test_images = in_data["test_images"]
+            train_labels = in_data["train_labels"]
+            val_labels = in_data["val_labels"]
+            test_labels = in_data["test_labels"]
+
             train_data = np.concatenate((train_images.reshape((-1, 28**2)).astype(np.float32) / 255,
                                          val_images.reshape((-1, 28**2)).astype(np.float32) / 255), axis=0)
             train_labels = np.concatenate((train_labels[:, 0].astype(np.int16),
@@ -281,30 +132,14 @@ class DataHandler(object):
         elif type_ == "WBC_partial":
             null_classes = kwargs.get("classes", [0, 1, 4, 5])
             self.null_classes = null_classes
-            try:
-                from medmnist import BloodMNIST
-                try:
-                    train_set = BloodMNIST(split="train")
-                    test_set = BloodMNIST(split="test")
-                    val_set = BloodMNIST(split="val")
-                except:
-                    train_set = BloodMNIST(split="train", download=True)
-                    test_set = BloodMNIST(split="test", download=True)
-                    val_set = BloodMNIST(split="val", download=True)
-                train_images = train_set.imgs
-                val_images = val_set.imgs
-                test_images = test_set.imgs
-                train_labels = train_set.labels
-                val_labels = val_set.labels
-                test_labels = test_set.labels
-            except ImportError:
-                in_data = np.load("medmnist/bloodmnist.npz")
-                train_images = in_data["train_images"]
-                val_images = in_data["val_images"]
-                test_images = in_data["test_images"]
-                train_labels = in_data["train_labels"]
-                val_labels = in_data["val_labels"]
-                test_labels = in_data["test_labels"]
+            in_data = np.load("medmnist/bloodmnist.npz")
+            train_images = in_data["train_images"]
+            val_images = in_data["val_images"]
+            test_images = in_data["test_images"]
+            train_labels = in_data["train_labels"]
+            val_labels = in_data["val_labels"]
+            test_labels = in_data["test_labels"]
+
             train_data = np.concatenate((train_images.reshape((-1, 28**2*3)).astype(np.float32) / 255,
                                          val_images.reshape((-1, 28**2*3)).astype(np.float32) / 255), axis=0)
             train_labels = np.concatenate((train_labels[:, 0].astype(np.int16),
@@ -328,82 +163,8 @@ class DataHandler(object):
             self.train_data_alt = train_data_alt[indicator_arr_train_labels_alt]
             self.train_labels_alt = train_labels_alt[indicator_arr_train_labels_alt]
             self.n_train_alt = len(self.train_labels_alt)
-        elif type_ == "cifar10":
-            null_classes = kwargs.get("classes", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-            self.null_classes = null_classes
-            noise_type = kwargs.get("cifar10_noise_type", "brightness")
-            # def unpickle(file):
-            #     with open(file, 'rb') as fo:
-            #         dict_ = pickle.load(fo, encoding='bytes')
-            #     return dict_
-            # cifar10_in = unpickle("CIFAR10/test_batch")
-            # cifar10_labels = np.array(cifar10_in[b"labels"]).astype(np.int16)   
-            # cifar10_data = np.transpose(np.reshape(cifar10_in[b"data"].astype(np.float32)/255, (-1, 32, 32, 3), order="F"), axes=(0, 2, 1, 3)).reshape((-1, 32**2*3))
-            cifar10_data = np.load("CIFAR10/train_data.npy").astype(np.float32)/255
-            cifar10_labels = np.load("CIFAR10/train_labels.npy").astype(np.int16)
-            indicator_arr = np.logical_or.reduce([cifar10_labels == class_ for class_ in null_classes])
-            cifar10_data = cifar10_data[indicator_arr]
-            cifar10_labels = cifar10_labels[indicator_arr]
 
-            self.train_data = cifar10_data[:-2000]
-            self.train_labels = cifar10_labels[:-2000]
-            self.n_train, self.d = self.train_data.shape
-            self.num_classes = len(np.unique(self.train_labels))
-
-            self.test_data = cifar10_data[-2000:]
-            self.test_labels = cifar10_labels[-2000:]
-            self.n_test, _ = self.test_data.shape
-
-            cifar10c_in = (np.load(f"CIFAR10C/{noise_type}.npy").astype(np.float32)/255).reshape((-1, 32**2*3))[-10000:]
-            cifar10_test_labels = np.load("CIFAR10/test_labels.npy").astype(np.int16)
-            indicator_arr = np.logical_or.reduce([cifar10_test_labels == class_ for class_ in null_classes])
-            cifar10c_data = cifar10c_in[indicator_arr]
-            self.train_data_alt = cifar10c_data
-            # plt.imshow(self.train_data[0].reshape((32, 32, 3)))
-            # plt.show()
-            # plt.imshow(self.train_data_alt[0].reshape((32, 32, 3)))
-            # plt.show()
-            self.train_labels_alt = cifar10_labels
-            print(noise_type)
-            self.n_train_alt = len(self.train_labels_alt)
-        elif type_ == "imagenet":
-            null_classes = kwargs.get("classes", [i for i in range(200)])
-            self.null_classes = null_classes
-            noise_type = kwargs.get("imagenet_noise_type", "brightness")
-
-            imagenet_data = (np.load("TinyImageNet/TinyImageNetTrain.npy").astype(np.float32)/255).reshape((-1, 64**2*3))
-            imagenet_labels = np.load("TinyImageNet/TinyImageNetTrainLabels.npy").astype(np.int16)
-            indicator_arr = np.logical_or.reduce([imagenet_labels == class_ for class_ in null_classes])
-            imagenet_data = imagenet_data[indicator_arr]
-            imagenet_labels = imagenet_labels[indicator_arr]
-
-            self.train_data = imagenet_data[:-len(self.null_classes)*100]
-            self.train_labels = imagenet_labels[:-len(self.null_classes)*100]
-            self.n_train, self.d = self.train_data.shape
-            self.num_classes = len(np.unique(self.train_labels))
-
-            self.test_data = imagenet_data[-len(self.null_classes)*100:]
-            self.test_labels = imagenet_labels[-len(self.null_classes)*100:]
-            self.n_test, _ = self.test_data.shape
-
-            imagenetc_in = (np.load(f"TinyImageNet-C/{noise_type}/5/TinyImageNetC.npy").astype(np.float32)/255).reshape((-1, 64**2*3))
-            imagenetc_labels = np.load(f"TinyImageNet-C/{noise_type}/5/TinyImageNetCLabels.npy").astype(np.int16)
-            indicator_arr = np.logical_or.reduce([imagenetc_labels == class_ for class_ in null_classes])
-            imagenetc_data = imagenetc_in[indicator_arr]
-            imagenetc_labels = imagenetc_labels[indicator_arr]
-
-            imagenetvalc_in = (np.load(f"TinyImageNetVal-C/{noise_type}/5/TinyImageNetC.npy").astype(np.float32)/255).reshape((-1, 64**2*3))
-            imagenetvalc_labels = np.load(f"TinyImageNetVal-C/{noise_type}/5/TinyImageNetCLabels.npy").astype(np.int16)
-            indicator_arr = np.logical_or.reduce([imagenetvalc_labels == class_ for class_ in null_classes])
-            imagenetvalc_data = imagenetvalc_in[indicator_arr]
-            imagenetvalc_labels = imagenetvalc_labels[indicator_arr]
-
-            self.train_data_alt = np.concatenate((imagenetc_data, imagenetvalc_data), axis=0)
-            self.train_labels_alt = np.hstack((imagenetc_labels, imagenetvalc_labels))
-            print(noise_type)
-            self.n_train_alt = len(self.train_labels_alt)
-
-        if (type_ != "retina") and (type_ != "EyePACS") and (type_ != "EyePACS_wtest") and (type_ != "WBC_partial") and (type_ != "cifar10") and (type_ != "imagenet"):
+        if (type_ != "retina") and (type_ != "EyePACS") and (type_ != "EyePACS_wtest") and (type_ != "WBC_partial"):
             posx = np.arange(28)
             posy = np.arange(28)
             C1, C2 = np.meshgrid(posx, posy)
@@ -492,6 +253,7 @@ class DataHandler(object):
         assert mr0 > 0, "The number of test data points."
         assert mr1 > 0, "The number of test data points."
         assert T > 0, "Number of time epochs most be positive."
+        change_pi_k = False
 
         ### Make sure enough data is available ###
         assert T == 2, ""
@@ -516,8 +278,18 @@ class DataHandler(object):
                 total_null_data = ell0+n0+np.sum(m0_arr)
                 total_alt_data = np.sum(m1_arr)
                 tries += 1
+                if tries > 1:
+                    print("Re-sampling data-splitting", self.n_train, total_null_data, self.n_train_alt, total_alt_data)
+                if tries > 5:
+                    change_pi_k = True
+                    pi_k = np.random.uniform(low=0, high=1, size=(K-1))
+                    tries = 0
+                    print("Re-sample contamination factors:")
+                    print(pi_k)
                 if tries > 10:
-                    assert False, ""
+                    print(self.n_train, total_null_data, self.n_train_alt, total_alt_data)
+                    assert False, "Not enough data."
+            print(self.n_train, total_null_data, self.n_train_alt, total_alt_data)
             assert self.n_train >= total_null_data, ""
             assert self.n_train_alt >= total_alt_data, ""
         elif (agent_splitting_type == "label_noise") or (agent_splitting_type == "feature_noise"):
@@ -819,6 +591,8 @@ class DataHandler(object):
                     data_counter_fromnull += m0
                     data_counter_fromalt += m1
 
+        if change_pi_k is True:
+            local_data["pi_k"] = pi_k
         self.local_data = deepcopy(local_data)
         return local_data
 

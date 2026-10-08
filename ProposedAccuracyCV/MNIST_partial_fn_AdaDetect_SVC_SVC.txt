@@ -1,0 +1,25 @@
+sims: 500
+seed: 12
+K: 10
+ell: 60
+n: 40
+m: 40
+agent splitting type: feature_noise
+feature noise type: GRF_norm
+std: 0.00
+distance cov: 0.00
+std alt: 0.30
+distance cov alt: 0.10
+pi model: uniform
+gamma: 0.50
+beta: -1.00
+zeta: -1.00
+lambda: 0.12
+i0 parameter: 3.00
+Model type: SVC
+Score type: AdaDetect
+AdaDetect classifier: SVC
+AdaDetect individual: False
+Classes: 1, 4, 7, 
+Use Storey: True
+baseline_COD, oracle_CODth, proposed, 

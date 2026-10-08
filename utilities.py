@@ -130,7 +130,6 @@ def import_data_time2_oracle(data_dict, rho, K, potential_train_data, potential_
     additional_oracle_train_null_indicator = potential_train_null_indicator[np.invert(potential_train_null_indicator)]
     for k in range(1, K):
         if (k-1) in idx_sort[:rho]:
-        # if pi_null_indicator[k-1] == True:
             additional_oracle_train_data = np.concatenate((additional_oracle_train_data, data_dict[f"Agent{k}_Time{1}_test"][0]), axis=0)
             additional_oracle_train_labels = np.hstack((additional_oracle_train_labels, data_dict[f"Agent{k}_Time{1}_test"][1]))
             additional_oracle_train_null_indicator = np.hstack((additional_oracle_train_null_indicator, data_dict[f"Agent{k}_Time{1}_test"][2]))
@@ -617,7 +616,7 @@ def compute_FDP_TDP(rejectBool_, null_indicator):
     return FDP, TDP
 
 def COD_fit_score(potential_train_data, potential_train_labels, train_data, train_labels,
-                  in_conformal_pvalues, zeta, beta, model_handler, null_indicator, test_data, test_labels):
+                  in_conformal_pvalues, zeta, beta, model_handler, null_indicator, test_data, test_labels, feature_dim):
     """
     Run conformal outlier detection, fit the model, and compute test score.
     """
@@ -640,11 +639,11 @@ def COD_fit_score(potential_train_data, potential_train_labels, train_data, trai
     train_data = np.concatenate((train_data, additional_train_data), axis=0)
     train_labels = np.hstack((train_labels, additional_train_labels))
     model_handler.fit(train_data, train_labels) # SLOW
-    model_scores = model_handler.score(test_data, test_labels)
+    model_scores = model_handler.score(test_data, test_labels, feature_dim)
     return model_scores, train_data.shape[0], FDP, TDP
 
 def proposed(rejectBool_, K, mr0, mr1, allin_conformal_pvalues, allin_train_data, allin_train_labels, train_data, train_labels,
-             zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels):
+             zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels, feature_dim):
     """
     The proposed method. Chooses the relevant data, runs conformal outlier detection,
     fits the model, and computes the test score.
@@ -655,10 +654,10 @@ def proposed(rejectBool_, K, mr0, mr1, allin_conformal_pvalues, allin_train_data
         = allin_train_data[indicator_arr], allin_train_labels[indicator_arr]
     null_indicator = allin_train_null_indicator[indicator_arr]
     return COD_fit_score(potential_train_data, potential_train_labels, train_data, train_labels,
-                         conformal_pvalues, zeta, beta, model_handler, null_indicator, test_data, test_labels)
+                         conformal_pvalues, zeta, beta, model_handler, null_indicator, test_data, test_labels, feature_dim)
 
 def proposed_picky(rejectBool_, K, mr0, mr1, allin_conformal_pvalues, allin_train_data, allin_train_labels, train_data, train_labels,
-             zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels):
+             zeta, beta, model_handler, allin_train_null_indicator, test_data, test_labels, feature_dim):
     """
     The proposed method. Chooses the relevant data, runs conformal outlier detection,
     fits the model, and computes the test score.
@@ -669,7 +668,7 @@ def proposed_picky(rejectBool_, K, mr0, mr1, allin_conformal_pvalues, allin_trai
         = allin_train_data[indicator_arr], allin_train_labels[indicator_arr]
     null_indicator = allin_train_null_indicator[indicator_arr]
     return COD_fit_score(potential_train_data, potential_train_labels, train_data, train_labels,
-                         conformal_pvalues, zeta, beta, model_handler, null_indicator, test_data, test_labels)
+                         conformal_pvalues, zeta, beta, model_handler, null_indicator, test_data, test_labels, feature_dim)
 
 def compute_conformal_scores(score_name, score_handler, data_dict, allin_train_data, allin_train_labels,
                              AdaDetect_individual=False, mr0=None, mr1=None, K=None):

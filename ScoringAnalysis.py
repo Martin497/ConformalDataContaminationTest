@@ -27,15 +27,14 @@ def main():
     np.random.seed(seed)
     sims = 10
     randomize = True
-    # savename = "MNIST_partial_ln_labelAdaDetect_PCALR_discrete_uniform"
     savename = "temp"
 
     import warnings
     warnings.filterwarnings("ignore")
 
     ### Scenario settings ###
-    data_name = "imagenet"
-    agent_splitting_type = "imagenet"
+    data_name = "retina"
+    agent_splitting_type = "retina"
     if data_name == "MNIST_partial":
         classes = [1, 4, 7]
         alt_classes = None
@@ -80,26 +79,31 @@ def main():
         feature_dim = (28, 28, 3)
     elif data_name == "cifar10":
         classes = [3, 4, 5]
-        # classes = [0, 1, 8, 9]
-        # classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         alt_classes = None
         shape = 32**2*3
-        cifar10_noise_type = "brightness"
+        cifar10_noise_type = "snow"
         imagenet_noise_type = None
         feature_dim = (32, 32, 3)
     elif data_name == "imagenet":
-        classes = [i for i in range(40)]
+        classes = [i for i in range(4)]
         alt_classes = None
         shape = 64**2*3
         cifar10_noise_type = None
-        imagenet_noise_type = "brightness"
+        imagenet_noise_type = "defocus_blur"
         feature_dim = (64, 64, 3)
 
-    K = 50+1 # K - 1 other agents
+    # K = 50+1 # K - 1 other agents
+    # T = 2
+    # ell0 = 300
+    # n = 250
+    # m = 50
+    # mr1 = 1
+
+    K = 10+1 # K - 1 other agents
     T = 2
-    ell0 = len(classes)*20
-    n = len(classes)*15
-    m = 30
+    ell0 = 60
+    n = 40
+    m = 40
     mr1 = 1
 
     ### Feature noise ###
@@ -138,9 +142,6 @@ def main():
     ### Hyperparameters ###
     score_name = "AdaDetect"
     # AdaDetect_classifier = "LogisticRegression"
-    # AdaDetect_classifier = "SVC"
-    # AdaDetect_classifier = "MLPClassifier"
-    # AdaDetect_classifier = "CNN"
     AdaDetect_classifier = "ResNet4"
 
     AdaDetect_individual = False
@@ -153,7 +154,6 @@ def main():
     rejection_thresholds = np.linspace(0, 0.975, num_rejection_thresholds)
     significance_levels = rejection_thresholds
 
-    # pi_th_arr = np.linspace(0, 0.3, num=7) # Threshold conformal contamination test
     pi_th_arr = np.array([0.0, 0.1, 0.2, 0.3, 0.4])
     len_pi_th_arr = len(pi_th_arr)
 
@@ -237,14 +237,8 @@ def main():
     ### Loop begin ###
     pi_true = np.zeros((sims, len_pi_th_arr, K-1))
     pcon_total = np.zeros((sims, len_pi_th_arr, K-1, 4), dtype=np.float32)
-    # FDR_est = np.ones((sims, len(pi_th_arr), K, 4), dtype=np.float32)
-    # FDR_est_v2 = np.ones((sims, len(pi_th_arr), num_rejection_thresholds, 4), dtype=np.float32)
-    # CCTest_data_proposed = np.zeros((sims, len(pi_th_arr), K, 4, 2), dtype=np.float32)
-    # CCTest_data_proposed_v2 = np.zeros((sims, len(pi_th_arr), num_rejection_thresholds, 4, 2), dtype=np.float32)
-    # bought_v2 = np.zeros((sims, len(pi_th_arr), num_rejection_thresholds, 4), dtype=np.uint16)
     CCTest_data_proposed_v3 = np.zeros((sims, len_pi_th_arr, num_rejection_thresholds, 4, 2), dtype=np.float32)
     bought_v3 = np.zeros((sims, len_pi_th_arr, num_rejection_thresholds, 4), dtype=np.uint16)
-    # pvals_all = np.zeros((sims, len_pi_th_arr, m, K-1), dtype=np.float64)
     pvals_all = np.zeros(0, dtype=np.float32)
     indicator_all = np.zeros(0, dtype=bool)
     labels_all = np.zeros(0, dtype=np.int16)
@@ -284,10 +278,6 @@ def main():
 
                 potential_train_data, potential_train_labels, potential_train_null_indicator = import_data_time1(data_dict, data_handler.d, K)
 
-                ### All the data ###
-                # allin_train_data, allin_train_labels, allin_train_null_indicator \
-                #     = import_data_time2_all(data_dict, K, potential_train_data, potential_train_labels, potential_train_null_indicator)
-
                 ### Conformal scores and p-values ###
                 t1 = time()
                 calibration_scores, potential_data_scores = compute_conformal_scores(score_name, score_handler, data_dict,
@@ -305,12 +295,10 @@ def main():
                 ### Run conformal contamination test ###
                 test_scores = np.zeros((K-1, m), dtype=np.float64)
                 for k in range(1, K):
-                    # test_scores[k-1] = score_handler.score(data_dict[f"Agent{k}_Time{0}_test"][0], data_dict[f"Agent{k}_Time{0}_test"][1])
                     test_scores[k-1] = potential_data_scores[(k-1)*m:k*m]
 
                 t1 = time()
                 pcon = np.zeros((K-1, 4), dtype=np.float32)
-                # for pi_th_idx, pi_th in enumerate(pi_th_arr):
                 for k in range(1, K):
                     pcon[k-1, 0], pcon[k-1, 1], pcon[k-1, 2], pcon[k-1, 3] \
                         = test_handler.all_conformal_contamination_tests(calibration_scores, test_scores[k-1],
@@ -321,7 +309,6 @@ def main():
 
                 ### Storey's Benjamini-Hochberg
                 for idx_alpha, alpha in enumerate(significance_levels):
-                    # for pi_th_idx, pi_th in enumerate(pi_th_arr):
                     for idx in range(4):
                         pvals = pcon[:, idx]
                         if use_Storey is True:
@@ -358,7 +345,6 @@ def main():
             elif pi_choice_type == "uniform":
                 pi_k = np.random.uniform(low=0, high=1, size=(K-1))
             elif pi_choice_type == "discrete_uniform":
-                # pi_k = np.random.randint(low=0, high=20, size=(K-1))/60
                 pi_k = np.random.randint(low=0, high=11, size=(K-1))/10
             for pi_th_idx, pi_th in enumerate(pi_th_arr):
                 pi_true[sim, pi_th_idx, :] = pi_k
@@ -376,17 +362,12 @@ def main():
 
             potential_train_data, potential_train_labels, potential_train_null_indicator = import_data_time1(data_dict, data_handler.d, K)
 
-            ### All the data ###
-            # allin_train_data, allin_train_labels, allin_train_null_indicator \
-            #     = import_data_time2_all(data_dict, K, potential_train_data, potential_train_labels, potential_train_null_indicator)
-
             ### Conformal scores and p-values ###
             calibration_scores, allin_data_scores = compute_conformal_scores(score_name, score_handler, data_dict,
                                                                              potential_train_data, potential_train_labels,
                                                                              AdaDetect_individual, m, mr1, K-1)
             potential_conformal_pvalues = test_handler.compute_conformal_pvalues(calibration_scores, allin_data_scores)
 
-            # pvals_all[sim, pi_th_idx] = potential_conformal_pvalues.reshape((m, K-1))
             pvals_all = np.hstack((pvals_all, potential_conformal_pvalues))
             indicator_all = np.hstack((indicator_all, potential_train_null_indicator))
             labels_all = np.hstack((labels_all, potential_train_labels))
@@ -394,7 +375,6 @@ def main():
             ### Run conformal contamination test ###
             test_scores = np.zeros((K-1, m), dtype=np.float64)
             for k in range(1, K):
-                # test_scores[k-1] = score_handler.score(data_dict[f"Agent{k}_Time{0}_test"][0], data_dict[f"Agent{k}_Time{0}_test"][1])
                 test_scores[k-1] = allin_data_scores[(k-1)*m:k*m]
 
             pcon = np.zeros((len_pi_th_arr, K-1, 4), dtype=np.float32)
@@ -404,79 +384,6 @@ def main():
                         = test_handler.all_conformal_contamination_tests(calibration_scores, test_scores[k-1],
                           pi_th=pi_th, n=n, m=m, lambda_=lambda_, i0=i0_arr[pi_th_idx])
                     pcon_total[sim] = pcon
-
-            # ### v1 (theoretically off)
-            # rejectBoolCCTest = np.zeros((len(pi_th_arr), K, 4, K-1), dtype=bool)
-            # for rho in range(K):
-            #     for pi_th_idx, pi_th in enumerate(pi_th_arr):
-            #         for idx in range(4):
-            #             pvals = pcon[pi_th_idx, :, idx]
-            #             sort_ = np.argsort(pvals).astype(np.int16)
-            #             pvals_sorted = pvals[sort_]
-            #             if rho == K-1:
-            #                 pvals_sorted_cutoff = max(0, pvals_sorted[0]-1e-04)
-            #                 FDR_est[sim, pi_th_idx, rho, idx] = Storey_FDR(pvals, gamma, pvals_sorted_cutoff)
-            #                 rejectBoolCCTest[pi_th_idx, rho, idx, :] = False
-            #             elif rho == 0:
-            #                 pvals_sorted_cutoff = pvals_sorted[-(rho+1)]
-            #                 FDR_est[sim, pi_th_idx, rho, idx] = Storey_FDR(pvals, gamma, pvals_sorted_cutoff)
-            #                 rejectBoolCCTest[pi_th_idx, rho, idx, :] = True
-            #             else:
-            #                 pvals_sorted_cutoff = pvals_sorted[-(rho+1)]
-            #                 FDR_est[sim, pi_th_idx, rho, idx] = Storey_FDR(pvals, gamma, pvals_sorted_cutoff)
-            #                 rejectBoolCCTest[pi_th_idx, rho, idx, sort_[:-rho]] = True
-    
-            #             # FDP
-            #             rejectBool_ = rejectBoolCCTest[pi_th_idx, rho, idx, :]
-            #             R = np.sum(rejectBool_)
-            #             RcapH = np.sum(rejectBool_[pi_k<=pi_th])
-            #             if R == 0:
-            #                 FDP = 0
-            #             else:
-            #                 FDP = RcapH/R
-            #             CCTest_data_proposed[sim, pi_th_idx, rho, idx, 0] = FDP
-    
-            #             # TDP
-            #             K1P = np.sum(pi_k>pi_th)
-            #             RcapHc = np.sum(rejectBool_[pi_k>pi_th])
-            #             if K1P == 0:
-            #                 TDP = 0
-            #             else:
-            #                 TDP = RcapHc/K1P
-            #             CCTest_data_proposed[sim, pi_th_idx, rho, idx, 1] = TDP
-
-            ### v2
-            # for idx_reject, reject_threshold in enumerate(rejection_thresholds):
-            # # for idx_reject, reject_threshold in enumerate(np.linspace(0, gamma, 11)):
-            #     gamma_ = (1+reject_threshold)/2
-            #     for pi_th_idx, pi_th in enumerate(pi_th_arr):
-            #         for idx in range(4):
-            #             pvals = pcon[pi_th_idx, :, idx]
-            #             sort_ = np.argsort(pvals).astype(np.int16)
-            #             pvals_sorted = pvals[sort_]
-            #             rejectBool_ = pvals_sorted <= reject_threshold
-            #             # FDR_est_v2[sim, pi_th_idx, idx_reject, idx] = Storey_FDR_CV(pvals, reject_threshold, 100)
-            #             FDR_est_v2[sim, pi_th_idx, idx_reject, idx] = Storey_FDR(pvals, gamma_, reject_threshold)
-    
-            #             # FDP
-            #             R = np.sum(rejectBool_)
-            #             RcapH = np.sum(rejectBool_[pi_k<=pi_th])
-            #             if R == 0:
-            #                 FDP = 0
-            #             else:
-            #                 FDP = RcapH/R
-            #             CCTest_data_proposed_v2[sim, pi_th_idx, idx_reject, idx, 0] = FDP
-    
-            #             # TDP
-            #             K1P = np.sum(pi_k>pi_th)
-            #             RcapHc = np.sum(rejectBool_[pi_k>pi_th])
-            #             if K1P == 0:
-            #                 TDP = 0
-            #             else:
-            #                 TDP = RcapHc/K1P
-            #             CCTest_data_proposed_v2[sim, pi_th_idx, idx_reject, idx, 1] = TDP
-    
-            #             bought_v2[sim, pi_th_idx, idx_reject, idx] = (K-1) - R
 
             ### Storey's Benjamini-Hochberg
             for idx_alpha, alpha in enumerate(significance_levels):
@@ -510,8 +417,6 @@ def main():
     print(tot_time_scores/(sims*len(pi_th_arr)), tot_time_contamination/(sims*len(pi_th_arr)*4))
     np.savez(f"ScoringResults/{savename}.npz", pi_true=pi_true, pvals_all=pvals_all, pi_th_arr=pi_th_arr,
              indicator_all=indicator_all, labels_all=labels_all, pcon_total=pcon_total,
-             # FDR_est=FDR_est, CCTest_data_proposed=CCTest_data_proposed,
-             # FDR_est_v2=FDR_est_v2, CCTest_data_proposed_v2=CCTest_data_proposed_v2, bought_v2=bought_v2,
              significance_levels=significance_levels, CCTest_data_proposed_v3=CCTest_data_proposed_v3, bought_v3=bought_v3)
 
 

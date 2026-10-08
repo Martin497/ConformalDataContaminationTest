@@ -3,14 +3,15 @@
 """
 Created on Thu Mar 13 14:28:37 2025
 
-@author: martin
+Two-sample testing with synthetic Gaussian data.
+Make Figure S2.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 from sklearn.svm import OneClassSVM
-# from depth.multivariate import projection
 
 import sys, os
 if os.path.dirname(os.getcwd()) not in sys.path: sys.path.append(os.path.dirname(os.getcwd()))
@@ -21,9 +22,14 @@ from ConformalContaminationTestModule import ConformalContaminationTest
 if __name__ == "__main__":
     plt.style.use("seaborn-v0_8-whitegrid")
     fsize = (9.6, 5.76)
+    mpl.rcParams['figure.dpi'] = 600
 
     np.random.seed(49)
     load = True
+    save = False
+    save_res = False
+
+    loadname = "TwoSample/pi_n200_m100_alpha0.05_mu14"
 
     if load == False:
         sims = 2000
@@ -74,7 +80,7 @@ if __name__ == "__main__":
                 XT0 = np.random.normal(loc=mu0, scale=sigma0, size=(m0, 2)).astype(np.float32)
                 XT1 = np.random.normal(loc=mu1, scale=sigma1, size=(m-m0, 2)).astype(np.float32)
                 XT = np.concatenate((XT0, XT1), axis=0)
-        
+
                 # =============================================================================
                 # Compute conformal scores
                 # =============================================================================
@@ -88,7 +94,7 @@ if __name__ == "__main__":
                 # =============================================================================
                 # Conformal contamination tests
                 # =============================================================================
-                pstorey, pquantile, _, plinear, pfisher = test_handler.almost_all_conformal_contamination_tests(
+                pstorey, pquantile, plinear, pfisher = test_handler.all_conformal_contamination_tests(
                     SC, ST, pi_th=pi_th, n=n, m=m, lambda_=lambda_, i0=i0)
 
                 if pstorey <= alpha:
@@ -168,13 +174,13 @@ if __name__ == "__main__":
         powerL2Permut = np.mean(rejectBoolL2Permut, axis=0)
         powerOCSVM = np.mean(rejectBoolOCSVM, axis=0)
 
-        np.savez(f"TwoSample/pi_n{n:d}_m{m:d}_alpha{alpha:.2f}_mu1{mu1:d}_lambda{lambda_:.3f}_i0{i0:d}.npz",
-                  pi_arr=pi_arr, powerCCstorey=powerCCstorey, powerCCquantile=powerCCquantile,
-                  powerCCfisher=powerCCfisher, powerCClinear=powerCClinear,
-                  powerKS=powerKS, powerKSPermut=powerKSPermut,
-                  powerL2Permut=powerL2Permut, powerOCSVM=powerOCSVM)
+        if save is True:
+            np.savez(f"TwoSample/pi_n{n:d}_m{m:d}_alpha{alpha:.2f}_mu1{mu1:d}_lambda{lambda_:.3f}_i0{i0:d}.npz",
+                      pi_arr=pi_arr, powerCCstorey=powerCCstorey, powerCCquantile=powerCCquantile,
+                      powerCCfisher=powerCCfisher, powerCClinear=powerCClinear,
+                      powerKS=powerKS, powerKSPermut=powerKSPermut,
+                      powerL2Permut=powerL2Permut, powerOCSVM=powerOCSVM)
     else:
-        loadname = "TwoSample/pi_n200_m100_alpha0.05_mu14_lambda0.060_i076"
         in_data = np.load(f"{loadname}.npz")
         pi_arr = in_data["pi_arr"]
         power = np.zeros((len(pi_arr), 8), dtype=np.float64)
@@ -199,30 +205,22 @@ if __name__ == "__main__":
         plt.xlabel(r"$\pi$")
         plt.ylabel("Power")
         plt.legend()
-        plt.savefig(f"{loadname}.png", dpi=500, bbox_inches="tight")
+        if save_res is True:
+            plt.savefig(f"{loadname}.png", dpi=500, bbox_inches="tight")
         plt.show()
 
-        with open(f"{loadname}.txt", "w") as file:
-            name_list = ["Storey", "Quantile", "Fisher", "Linear", "KS", "KSPermut", "L2Permut", "OCSVM"]
-            color_list = ["color2", "color3", "color4", "color5", "color6", "color7", "color8", "color9"]
-            marker_list = ["square", "diamond", "star", "triangle"]
-            linestyle_list = ["solid", "dashed", "dotted", "dashdotted"]
-            for idx in range(8):
-                file.write(f"\\addplot[semithick, mark={marker_list[0]}"+", mark options={solid},"+f" {linestyle_list[0]}, {color_list[idx]}]\n")
-                file.write("table{%\n")
-                for x, y in zip(pi_arr, power[:, idx]):
-                    file.write(f"{x:.4f}  {y:.4f}\n")
-                # file.write("};\n\\addlegendentry{"+f"{name_list[idx]} ($m =$ " + f"{m:d}" + ")}\n\n")
-                file.write("};\\label{plot:"+f"{name_list[idx]}_"+"}\n")
+        if save_res is True:
+            with open(f"{loadname}.txt", "w") as file:
+                name_list = ["Storey", "Quantile", "Fisher", "Linear", "KS", "KSPermut", "L2Permut", "OCSVM"]
+                color_list = ["color2", "color3", "color4", "color5", "color6", "color7", "color8", "color9"]
+                marker_list = ["square", "diamond", "star", "triangle"]
+                linestyle_list = ["solid", "dashed", "dotted", "dashdotted"]
+                for idx in range(8):
+                    file.write(f"\\addplot[semithick, mark={marker_list[0]}"+", mark options={solid},"+f" {linestyle_list[0]}, {color_list[idx]}]\n")
+                    file.write("table{%\n")
+                    for x, y in zip(pi_arr, power[:, idx]):
+                        file.write(f"{x:.4f}  {y:.4f}\n")
+                    # file.write("};\n\\addlegendentry{"+f"{name_list[idx]} ($m =$ " + f"{m:d}" + ")}\n\n")
+                    file.write("};\\label{plot:"+f"{name_list[idx]}_"+"}\n")
 
-
-    # print("Kolmogorov-Smirnov rejection proportion:                    ", np.sum(rejectBoolKS)/sims)
-    # print("Permutation Kolmogorov-Smirnov rejection proportion:        ", np.sum(rejectBoolKSPermut)/sims)
-    # print("Permutation L2 rejection proportion:                        ", np.sum(rejectBoolL2Permut)/sims)
-    # # print("Permutation projection depth rejection proportion:  ", np.sum(rejectBoolDD)/sims)
-    # print("Permutation OC-SVM rejection proportion:                    ", np.sum(rejectBoolOCSVM)/sims)
-    # print("Storey conformal contamination test rejection proportion:   ", np.sum(rejectBoolCCstorey)/sims)
-    # print("Quantile conformal contamination test rejection proportion: ", np.sum(rejectBoolCCquantile)/sims)
-    # print("Summation conformal contamination test rejection proportion:", np.sum(rejectBoolCClinear)/sims)
-    # print("Fisher conformal contamination test rejection proportion:   ", np.sum(rejectBoolCCfisher)/sims)
 

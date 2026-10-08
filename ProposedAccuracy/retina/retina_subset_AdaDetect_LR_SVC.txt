@@ -1,0 +1,22 @@
+sims: 500
+seed: 11
+K: 10
+ell: 60
+n: 40
+mr0: 40  ;  mr1: 40
+agent splitting type: retina
+feature noise type: GRF_norm
+std: 0.00
+distance cov: 0.00
+pi model: uniform
+gamma: 0.50
+beta: 0.10
+zeta: 0.50
+lambda: 0.12
+i0 parameter: 3.00
+Model type: SVC
+Score type: AdaDetect
+AdaDetect classifier: LogisticRegression
+AdaDetect individual: False
+Use Storey: True
+baseline_COD, oracle_CODth, proposed, 

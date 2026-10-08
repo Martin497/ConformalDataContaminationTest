@@ -22,7 +22,7 @@ if __name__ == "__main__":
     pi_th_idx = 1
     pi = 0.1
 
-    savename = "retina/retina_AdaDetect_SVC_discrete_uniform"
+    savename = "retina/retina_labelAdaDetect_LR_discrete_uniform"
 
     with open(savename+".txt", "r") as file:
         lines = file.readlines()

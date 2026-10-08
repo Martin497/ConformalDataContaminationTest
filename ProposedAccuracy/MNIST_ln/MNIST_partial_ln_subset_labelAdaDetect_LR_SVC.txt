@@ -1,0 +1,21 @@
+sims: 500
+seed: 11
+K: 10
+ell: 60
+n: 40
+m: 40
+agent splitting type: label_noise
+feature noise type: GRF_norm
+std: 0.00
+distance cov: 0.00
+pi model: uniform
+gamma: 0.50
+beta: 0.10
+zeta: 0.50
+lambda: 0.12
+i0 parameter: 3.00
+Model type: SVC
+Score type: labelAdaDetect
+Classes: 1, 4, 7, 
+Use Storey: True
+baseline_COD, oracle_CODth, proposed, 

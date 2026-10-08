@@ -17,25 +17,29 @@ if __name__ == "__main__":
     fsize = (9.6, 5.76)
     mpl.rcParams['figure.dpi'] = 600
 
-    scenarios = ["retina/retina",
-                 "retinalOCT_partial/retinalOCT_partial",
-                 "WBC_partial/WBC_partial",
-                 "FEMNIST_partial/FEMNIST_partial",
-                 "MNIST_partial_fn/MNIST_partial_fn",
-                 "MNIST_partial_ln/MNIST_partial_ln"]
-    conformal_scores = ["OCSVM",
-                        "IF",
-                        "AE",
-                        "AdaDetect_LR",
-                        "AdaDetect_SVC",
-                        "labelOCSVM",
-                        "labelIF",
-                        "labelAE",
-                        "labelAdaDetect_LR",
-                        "labelAdaDetect_SVC"]
+    # scenarios = ["retina/retina",
+    #              "retinalOCT_partial/retinalOCT_partial",
+    #              "WBC_partial/WBC_partial",
+    #              "FEMNIST_partial/FEMNIST_partial",
+    #              "MNIST_partial_fn/MNIST_partial_fn",
+    #              "MNIST_partial_ln/MNIST_partial_ln"]
+    # conformal_scores = ["OCSVM",
+    #                     "IF",
+    #                     "AE",
+    #                     "AdaDetect_LR",
+    #                     "AdaDetect_SVC",
+    #                     "labelOCSVM",
+    #                     "labelIF",
+    #                     "labelAE",
+    #                     "labelAdaDetect_LR",
+    #                     "labelAdaDetect_SVC"]
+    #
+    # colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple",
+    #           "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
 
-    colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple",
-              "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
+    scenarios = ["retina/retina"]
+    conformal_scores = ["labelAdaDetect_LR"]
+    colors = ["tab:olive"]
 
     for sc_idx, sc in enumerate(scenarios):
         type_name = sc.split("/")[-1]

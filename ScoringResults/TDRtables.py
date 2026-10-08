@@ -17,12 +17,12 @@ from Benjamini_Hochberg import Storeys_correction, Benjamini_Hochberg_procedure
 
 
 if __name__ == "__main__":
-    scenarios = ["retina/retina",
-                 "retinalOCT_partial/retinalOCT_partial",
-                 "WBC_partial/WBC_partial",
-                 "FEMNIST_partial/FEMNIST_partial",
-                 "MNIST_partial_fn/MNIST_partial_fn",
-                 "MNIST_partial_ln/MNIST_partial_ln"]
+    # scenarios = ["retina/retina",
+    #              "retinalOCT_partial/retinalOCT_partial",
+    #              "WBC_partial/WBC_partial",
+    #              "FEMNIST_partial/FEMNIST_partial",
+    #              "MNIST_partial_fn/MNIST_partial_fn",
+    #              "MNIST_partial_ln/MNIST_partial_ln"]
     # conformal_scores = ["OCSVM",
     #                     "IF",
     #                     "AE",
@@ -33,8 +33,10 @@ if __name__ == "__main__":
     #                     "labelAE",
     #                     "labelAdaDetect_LR",
     #                     "labelAdaDetect_SVC"]
-    conformal_scores = ["AdaDetect_SVC",
-                        "labelAdaDetect_LR"]
+
+    scenarios = ["retina/retina"]
+    conformal_scores = ["labelAdaDetect_LR"]
+
     names = ["Storey", "Quantile", "Fisher", "Sum"]
     pi_th_arr = [0.0, 0.1, 0.2]
     alpha_idx = 4
@@ -79,21 +81,31 @@ if __name__ == "__main__":
                             TDP_total[sim, pi_th_idx, idx_alpha, idx2_] = TDP
             TDR[sc_idx, cs_idx] = np.mean(TDP_total, axis=0)
 
-    print("\n TDR table scenarios (S1), (S2), (S3)")
+    print("\n TDR table")
     for cs_idx, cs in enumerate(conformal_scores):
         print(f"\n(C{cs_idx+1:d})\n")
-        headers = list(np.repeat([f"(S{idx+1:d})" for idx in range(0, 3)], 3))
+        headers = [""]+[f"(S{idx+1:d}, pith={pi_th_arr[idx]:.1f})" for idx in range(0, 3)]
         table = list()
         for idx2 in range(4):
-            table.append([f"{names[idx2]}"] + [TDR[sc_idx, cs_idx, pi_th_idx, alpha_idx, idx2] for sc_idx in range(0, 3) for pi_th_idx in range(len(pi_th_arr))])
+            table.append([f"{names[idx2]}"] + [TDR[0, cs_idx, pi_th_idx, alpha_idx, idx2] for pi_th_idx in range(len(pi_th_arr))])
         print(tabulate(table, headers, tablefmt="latex", floatfmt=(".4f")))
 
-    print("\n TDR table scenarios (S4), (S5), (S6)")
-    for cs_idx, cs in enumerate(conformal_scores):
-        print(f"\n(C{cs_idx+1:d})\n")
-        headers = list(np.repeat([f"(S{idx+1:d})" for idx in range(3, 6)], 3))
-        table = list()
-        for idx2 in range(4):
-            table.append([f"{names[idx2]}"] + [TDR[sc_idx, cs_idx, pi_th_idx, alpha_idx, idx2] for sc_idx in range(3, 6) for pi_th_idx in range(len(pi_th_arr))])
-        print(tabulate(table, headers, tablefmt="latex", floatfmt=(".4f")))
+
+    # print("\n TDR table scenarios (S1), (S2), (S3)")
+    # for cs_idx, cs in enumerate(conformal_scores):
+    #     print(f"\n(C{cs_idx+1:d})\n")
+    #     headers = list(np.repeat([f"(S{idx+1:d})" for idx in range(0, 3)], 3))
+    #     table = list()
+    #     for idx2 in range(4):
+    #         table.append([f"{names[idx2]}"] + [TDR[sc_idx, cs_idx, pi_th_idx, alpha_idx, idx2] for sc_idx in range(0, 3) for pi_th_idx in range(len(pi_th_arr))])
+    #     print(tabulate(table, headers, tablefmt="latex", floatfmt=(".4f")))
+
+    # print("\n TDR table scenarios (S4), (S5), (S6)")
+    # for cs_idx, cs in enumerate(conformal_scores):
+    #     print(f"\n(C{cs_idx+1:d})\n")
+    #     headers = list(np.repeat([f"(S{idx+1:d})" for idx in range(3, 6)], 3))
+    #     table = list()
+    #     for idx2 in range(4):
+    #         table.append([f"{names[idx2]}"] + [TDR[sc_idx, cs_idx, pi_th_idx, alpha_idx, idx2] for sc_idx in range(3, 6) for pi_th_idx in range(len(pi_th_arr))])
+    #     print(tabulate(table, headers, tablefmt="latex", floatfmt=(".4f")))
 

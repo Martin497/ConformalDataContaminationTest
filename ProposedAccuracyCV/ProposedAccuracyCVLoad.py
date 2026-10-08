@@ -33,7 +33,6 @@ if __name__ == "__main__":
         bought_data_partoracles_th_mean = np.mean(in_data["bought_data_partoracles_th"], axis=0)
         scores[idx, 0, 0] = model_scores_partoracles_th_mean
         scores[idx, 0, 1] = model_scores_partoracles_th_std
-        # print(bought_data_partoracles_th_mean)
 
         model_scores_proposed_mean = np.mean(in_data["model_scores_proposed"]*100, axis=0)
         model_scores_proposed_std = np.std(in_data["model_scores_proposed"]*100, axis=0)
